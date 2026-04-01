@@ -37,7 +37,7 @@ export const GROUPS: Group[] = [
       {
         name: "이용주",
         primaryKeywords: ["피식대학 이용주", "피식 이용주"],
-        excludeKeywords: ["이용주 의원", "이용주 교수", "이용주 박사", "이용주 대표"],
+        excludeKeywords: ["이용주 의원", "이용주 교수", "이용주 박사", "이용주 대표", "이용주 국회의원", "이용주 판사"],
       },
     ],
   },
@@ -121,9 +121,11 @@ export function isRelevantArticle(
   const group = GROUPS.find((g) => g.id === groupId);
   if (!group) return false;
 
-  const text = `${title} ${snippet || ""}`.toLowerCase();
+  const titleLower = title.toLowerCase();
+  const snippetLower = (snippet || "").toLowerCase();
+  const text = `${titleLower} ${snippetLower}`;
 
-  // 1) 제외 키워드 체크 (동명이인)
+  // 1) 제외 키워드 체크 (동명이인 등 필터링)
   if (memberName) {
     const member = group.members.find((m) => m.name === memberName);
     if (member) {
@@ -133,14 +135,22 @@ export function isRelevantArticle(
     }
   }
 
-  // 2) 그룹 전체 키워드 검색이라도 그룹 관련 키워드가 제목/스니펫에 있어야 통과
+  // 2) 그룹 전체 키워드 검색의 경우
   if (!memberName) {
+    // 제목이나 스니펫에 그룹 인증 키워드가 있어야 함
     return group.verifyKeywords.some((vk) => text.includes(vk.toLowerCase()));
   }
 
-  // 3) 멤버 검색의 경우: 기사에 해당 멤버 이름이 반드시 포함되어야 함
-  if (!text.includes(memberName.toLowerCase())) return false;
+  // 3) 멤버 검색의 경우
+  // 3-1) 제목에 멤버 이름이 있으면 가중치 높음
+  const hasMemberInTitle = titleLower.includes(memberName.toLowerCase());
+  const hasMemberInSnippet = snippetLower.includes(memberName.toLowerCase());
+  
+  if (!hasMemberInTitle && !hasMemberInSnippet) return false;
 
-  // 4) 그룹 관련 키워드도 있어야 함
-  return group.verifyKeywords.some((vk) => text.includes(vk.toLowerCase()));
+  // 3-2) 그룹 인증 키워드가 반드시 하나는 있어야 함 (동명이인 방지 핵심)
+  const hasGroupContext = group.verifyKeywords.some((vk) => text.includes(vk.toLowerCase()));
+  if (!hasGroupContext) return false;
+
+  return true;
 }

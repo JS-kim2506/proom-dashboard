@@ -131,6 +131,16 @@ function updateStatsFile(result: CollectResult) {
   fileSave("stats.json", stats.slice(-30));
 }
 
+export async function getResultByDate(date: string): Promise<CollectResult | null> {
+  if (isVercel) return redisGet<CollectResult>(`result-${date}`);
+  return fileGet<CollectResult>(`${date}.json`);
+}
+
+export async function getTrendsByDate(date: string): Promise<TrendTopic[]> {
+  if (isVercel) return (await redisGet<TrendTopic[]>(`trends-${date}`)) || [];
+  return fileGet<TrendTopic[]>(`trends-${date}.json`) || [];
+}
+
 export async function getLatestResult(): Promise<CollectResult | null> {
   if (isVercel) return redisGet<CollectResult>("latest-result");
   return fileGetLatest<CollectResult>("");

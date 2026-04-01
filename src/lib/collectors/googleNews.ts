@@ -9,6 +9,22 @@ function hashId(prefix: string, str: string): string {
   return `${prefix}-${crypto.createHash("md5").update(str).digest("hex").slice(0, 16)}`;
 }
 
+/** 날짜 문자열 파싱 및 미래 날짜 보정 (2025년 기사가 2026년으로 오기되는 문제 해결) */
+function parsePublishedAt(dateStr?: string): string {
+  if (!dateStr) return new Date().toISOString();
+  
+  const parsed = new Date(dateStr);
+  const now = new Date();
+  
+  // 파칭된 날짜가 현재보다 미래라면(오차 범위 제외), 작년 기사로 간주
+  // Google News RSS에서 연도가 생략된 "1월 29일" 같은 표현이 들어올 때의 대응
+  if (parsed > now) {
+    parsed.setFullYear(parsed.getFullYear() - 1);
+  }
+  
+  return parsed.toISOString();
+}
+
 const parser = new Parser({
   headers: {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -48,7 +64,7 @@ export async function collectGoogleNews(
         groupId,
         memberName,
         keyword,
-        publishedAt: entry.pubDate || new Date().toISOString(),
+        publishedAt: parsePublishedAt(entry.pubDate),
         collectedAt: new Date().toISOString(),
         alertLevel: detectAlertLevel(title),
         snippet,
@@ -73,7 +89,7 @@ export async function collectTrendTopics(): Promise<TrendTopic[]> {
         title: entry.title || "",
         link: entry.link || "",
         source: "Google News",
-        publishedAt: entry.pubDate || new Date().toISOString(),
+        publishedAt: parsePublishedAt(entry.pubDate),
         snippet: entry.contentSnippet?.slice(0, 300),
       });
     }
@@ -109,7 +125,7 @@ export async function collectCategoryNews(): Promise<Record<string, TrendTopic[]
           title,
           link: entry.link || "",
           source: extractSource(entry.title || ""),
-          publishedAt: entry.pubDate || new Date().toISOString(),
+          publishedAt: parsePublishedAt(entry.pubDate),
           snippet,
           summary: generateSummary(title, snippet),
           category: id,
@@ -129,8 +145,16 @@ export async function collectCategoryNews(): Promise<Record<string, TrendTopic[]
 
 /** Google News 제목에서 출처 추출 ("제목 - 출처" 형식) */
 function extractSource(fullTitle: string): string {
-  const parts = fullTitle.split(" - ");
-  return parts.length > 1 ? parts[parts.length - 1].trim() : "Google News";
+  // 1. "제목 - 출처" 패턴 (가장 일반적)
+  const dashParts = fullTitle.split(" - ");
+  if (dashParts.length > 1) return dashParts[dashParts.length - 1].trim();
+
+  // 2. "제목 | 출처" 패턴
+  const pipeParts = fullTitle.split(" | ");
+  if (pipeParts.length > 1) return pipeParts[pipeParts.length - 1].trim();
+
+  // 3. 구분자가 없는 경우
+  return "Google News";
 }
 
 const BLOG_SOURCES = ["brunch", "tistory", "naver.com/post", "blog", "velog", "medium"];
