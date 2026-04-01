@@ -35,13 +35,16 @@ export async function collectGoogleNews(
 
       if (!isRelevantArticle(title, snippet, groupId, memberName)) continue;
 
+      const sourceName = extractSource(title);
+      const sourceType = classifySource(sourceName);
+
       items.push({
         id: hashId("gnews", entry.link || title),
         title,
         link: entry.link || "",
-        source: "Google News",
+        source: sourceName,
         sourceTier: 1,
-        sourceType: "news",
+        sourceType,
         groupId,
         memberName,
         keyword,
@@ -128,6 +131,17 @@ export async function collectCategoryNews(): Promise<Record<string, TrendTopic[]
 function extractSource(fullTitle: string): string {
   const parts = fullTitle.split(" - ");
   return parts.length > 1 ? parts[parts.length - 1].trim() : "Google News";
+}
+
+const BLOG_SOURCES = ["brunch", "tistory", "naver.com/post", "blog", "velog", "medium"];
+const COMMUNITY_SOURCES = ["theqoo", "dcinside", "fmkorea", "instiz", "mlbpark", "clien", "ruliweb", "ppomppu"];
+
+/** 출처명으로 뉴스/블로그/커뮤니티 분류 */
+function classifySource(source: string): "news" | "blog" | "community" {
+  const s = source.toLowerCase();
+  if (BLOG_SOURCES.some((b) => s.includes(b))) return "blog";
+  if (COMMUNITY_SOURCES.some((c) => s.includes(c))) return "community";
+  return "news";
 }
 
 /** 스니펫 기반 AI 스타일 요약 생성 */

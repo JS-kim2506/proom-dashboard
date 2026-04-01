@@ -55,6 +55,62 @@ const FUBAO_QUOTES = [
   "나무 올라갈 거야! 🌳",
 ];
 
+// === 4. 점심 메뉴 추천 ===
+const LUNCH_MENUS = [
+  { menu: "김치찌개", desc: "역시 한국인은 김치찌개지!", emoji: "🍲" },
+  { menu: "돈까스", desc: "바삭한 돈까스 어때요?", emoji: "🍛" },
+  { menu: "초밥", desc: "오늘은 좀 특별하게!", emoji: "🍣" },
+  { menu: "떡볶이", desc: "매콤달콤 분식 타임~", emoji: "🌶️" },
+  { menu: "된장찌개", desc: "구수한 된장찌개 한 그릇!", emoji: "🥘" },
+  { menu: "짜장면", desc: "중식의 정석!", emoji: "🍜" },
+  { menu: "비빔밥", desc: "건강하게 비빔밥!", emoji: "🍚" },
+  { menu: "칼국수", desc: "따뜻한 칼국수 어때요?", emoji: "🍲" },
+  { menu: "햄버거", desc: "간단하게 버거 고?", emoji: "🍔" },
+  { menu: "파스타", desc: "오늘은 양식 기분!", emoji: "🍝" },
+  { menu: "쌀국수", desc: "베트남 쌀국수 어때?", emoji: "🍜" },
+  { menu: "제육볶음", desc: "밥도둑 제육볶음!", emoji: "🥩" },
+  { menu: "샐러드", desc: "가볍게 샐러드로!", emoji: "🥗" },
+  { menu: "삼겹살", desc: "점심부터 고기 파티?!", emoji: "🥓" },
+  { menu: "카레", desc: "든든한 카레 한 그릇!", emoji: "🍛" },
+];
+
+export function LunchRecommend() {
+  const [open, setOpen] = useState(false);
+  const [menu, setMenu] = useState<typeof LUNCH_MENUS[0] | null>(null);
+
+  const handleClick = () => {
+    if (!open) {
+      setMenu(LUNCH_MENUS[Math.floor(Math.random() * LUNCH_MENUS.length)]);
+    }
+    setOpen(!open);
+  };
+
+  return (
+    <div className="fixed top-4 right-4 lg:top-6 lg:right-6 z-50 flex flex-col items-end gap-2">
+      {open && menu && (
+        <div className="animate-fubao-appear bg-white dark:bg-slate-800 text-sm text-gray-700 dark:text-slate-200 px-4 py-3 rounded-2xl rounded-tr-sm shadow-lg border border-gray-200 dark:border-slate-700 max-w-[220px] mt-14 lg:mt-0">
+          <p className="text-2xl mb-1">{menu.emoji}</p>
+          <p className="font-bold text-base">{menu.menu}</p>
+          <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">{menu.desc}</p>
+          <button
+            onClick={(e) => { e.stopPropagation(); setMenu(LUNCH_MENUS[Math.floor(Math.random() * LUNCH_MENUS.length)]); }}
+            className="mt-2 text-xs text-indigo-500 hover:text-indigo-400 font-medium"
+          >
+            🎲 다시 뽑기
+          </button>
+        </div>
+      )}
+      <button
+        onClick={handleClick}
+        className={`w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900 border-2 border-amber-300 dark:border-amber-600 shadow-md flex items-center justify-center text-xl hover:scale-110 active:scale-95 transition-transform ${open ? "ring-2 ring-amber-400 ring-offset-2 dark:ring-offset-slate-950" : ""}`}
+        title="점심 뭐 먹지?"
+      >
+        🍽️
+      </button>
+    </div>
+  );
+}
+
 export function FubaoFloating() {
   const [open, setOpen] = useState(false);
   const [quote, setQuote] = useState("");
