@@ -90,6 +90,15 @@ export default function NewsCard({ item }: Props) {
               {item.alertLevel === "critical" ? "🚨" : item.alertLevel === "warning" ? "⚠️" : "ℹ️"} {item.alertLevel}
             </span>
           )}
+          {item.sentiment !== undefined && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+              item.sentiment >= 70 ? "bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-300" :
+              item.sentiment <= 30 ? "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300" :
+              "bg-gray-50 text-gray-500 dark:bg-slate-800 dark:text-slate-400"
+            }`}>
+              {item.sentiment >= 70 ? "🎉 긍정" : item.sentiment <= 30 ? "❗ 부정" : "😐 중립"}
+            </span>
+          )}
         </div>
       </div>
 

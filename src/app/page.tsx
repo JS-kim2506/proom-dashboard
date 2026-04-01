@@ -125,13 +125,44 @@ export default function HomePage() {
 
       <CollectStatus collectedAt={collectedAt} stats={stats} />
       <AlertBanner items={items} />
-      <SummaryCards byGroup={stats?.byGroup || {}} total={stats?.total || 0} />
+      <SummaryCards 
+        byGroup={stats?.byGroup || {}} 
+        total={stats?.total || 0} 
+        overallSentiment={stats?.overallSentiment}
+      />
       
       {/* 분석 차트 영역 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <TrendChart stats={dailyStats} />
         <ShareChart byGroup={stats?.byGroup || {}} />
       </div>
+
+      {/* AI 데일리 브리핑 (New) */}
+      {items.length > 0 && (
+        <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-500/10 dark:to-blue-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xl">🤖</span>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">AI 오늘 아침 브리핑</h2>
+          </div>
+          <div className="text-sm text-gray-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+            {stats && stats.overallSentiment !== undefined && (
+              <div className="mb-4 flex items-center gap-2">
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-500/30">
+                  📊 오늘 여론 지수: {stats.overallSentiment}점
+                </span>
+                <span className={`text-xs font-bold ${stats.overallSentiment >= 70 ? "text-green-600" : stats.overallSentiment <= 30 ? "text-red-500" : "text-gray-500"}`}>
+                  ({stats.overallSentiment >= 70 ? "매우 긍정" : stats.overallSentiment <= 30 ? "주의 필요" : "판단 유보"})
+                </span>
+              </div>
+            )}
+            {/* API에서 온 Digest 내용 출력 */}
+            <div className="prose dark:prose-invert max-w-none text-sm">
+              {/* @ts-ignore (HTML/MD 믹스 처리를 위해 일단 출력) */}
+              {(items as any).aiDigest || (loading ? "분석 중..." : "오늘의 주요 이슈를 분석하고 있습니다.")}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 바로가기 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">

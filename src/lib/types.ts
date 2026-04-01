@@ -14,6 +14,8 @@ export interface CollectedItem {
   collectedAt: string;
   alertLevel?: AlertLevel | null;
   snippet?: string;
+  sentiment?: number; // 0~100 (0: 매우 부정, 50: 중립, 100: 매우 긍정)
+  aiSummary?: string; 
 }
 
 export interface CollectResult {
@@ -21,12 +23,14 @@ export interface CollectResult {
   collectedAt: string;
   items: CollectedItem[];
   stats: CollectStats;
+  aiDigest?: string; // 오늘 하루 전체 요약
 }
 
 export interface CollectStats {
   total: number;
   byGroup: Record<string, number>;
   bySource: Record<string, number>;
+  overallSentiment?: number; // 전체 평균 감성 지수
   tierStatus: {
     tier1: { success: boolean; count: number; errors: string[] };
     tier2: { success: boolean; count: number; errors: string[] };
