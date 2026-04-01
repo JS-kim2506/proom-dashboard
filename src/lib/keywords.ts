@@ -133,10 +133,12 @@ export function isRelevantArticle(
     }
   }
 
-  // 2) 검증 키워드: 기사가 실제로 이 그룹과 관련 있는지 확인
-  //    그룹 전체 키워드 검색(memberName 없음)은 검색어 자체가 그룹명이므로 통과
+  // 2) 그룹 전체 키워드 검색(memberName 없음)은 검색어 자체가 그룹명이므로 통과
   if (!memberName) return true;
 
-  //    멤버 검색의 경우: 제목이나 스니펫에 그룹 관련 키워드가 있어야 함
+  // 3) 멤버 검색의 경우: 기사에 해당 멤버 이름이 반드시 포함되어야 함
+  if (!text.includes(memberName.toLowerCase())) return false;
+
+  // 4) 그룹 관련 키워드도 있어야 함
   return group.verifyKeywords.some((vk) => text.includes(vk.toLowerCase()));
 }

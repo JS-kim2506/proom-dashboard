@@ -220,7 +220,7 @@ function MonitorContent() {
       </div>
 
       {/* 결과 리스트 (시간순) */}
-      <div className="space-y-2">
+      <div className="space-y-2" key={`${selectedGroup}-${selectedMember}-${selectedSource}-${searchKeyword}`}>
         {filteredItems.map((item) => (
           <NewsCard key={item.id} item={item} />
         ))}
