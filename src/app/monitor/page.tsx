@@ -7,7 +7,7 @@ import type { CollectedItem } from "@/lib/types";
 import NewsCard from "@/components/NewsCard";
 import { FubaoEmptyState, getRandomLoadingMessage } from "@/components/FubaoEasterEgg";
 
-type SourceFilter = "all" | "news" | "community" | "youtube" | "blog";
+type SourceFilter = "all" | "news" | "community" | "blog";
 
 export default function MonitorPage() {
   return (
@@ -50,17 +50,8 @@ function MonitorContent() {
     return group ? group.members.map((m) => ({ ...m, groupId: group.id, groupName: group.name })) : [];
   }, [selectedGroup]);
 
-  // YouTube는 채널 영상이므로 뉴스와 분리
-  const channelVideos = useMemo(() => {
-    let vids = items.filter((i) => i.sourceType === "youtube");
-    if (selectedGroup !== "all") vids = vids.filter((i) => i.groupId === selectedGroup);
-    vids.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-    return vids;
-  }, [items, selectedGroup]);
-
   const filteredItems = useMemo(() => {
-    // YouTube 제외한 뉴스/커뮤니티/블로그만
-    let result = items.filter((i) => i.sourceType !== "youtube");
+    let result = [...items];
 
     // 그룹 필터
     if (selectedGroup !== "all") {
@@ -72,12 +63,9 @@ function MonitorContent() {
       result = result.filter((i) => i.memberName === selectedMember);
     }
 
-    // 소스 필터 (youtube 선택 시 뉴스 리스트는 빈 상태)
-    if (selectedSource !== "all" && selectedSource !== "youtube") {
+    // 소스 필터
+    if (selectedSource !== "all") {
       result = result.filter((i) => i.sourceType === selectedSource);
-    }
-    if (selectedSource === "youtube") {
-      result = [];
     }
 
     // 키워드 검색
@@ -103,7 +91,6 @@ function MonitorContent() {
       all: base.length,
       news: base.filter((i) => i.sourceType === "news").length,
       community: base.filter((i) => i.sourceType === "community").length,
-      youtube: base.filter((i) => i.sourceType === "youtube").length,
       blog: base.filter((i) => i.sourceType === "blog").length,
     };
   }, [items, selectedGroup]);
@@ -194,8 +181,8 @@ function MonitorContent() {
         <div>
           <label className="text-[10px] font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-1.5 block">소스</label>
           <div className="flex gap-1.5 flex-wrap">
-            {(["all", "news", "community", "youtube", "blog"] as SourceFilter[]).map((src) => {
-              const labels: Record<string, string> = { all: "전체", news: "📰 뉴스", community: "💬 커뮤니티", youtube: "📺 YouTube", blog: "📝 블로그" };
+            {(["all", "news", "community", "blog"] as SourceFilter[]).map((src) => {
+              const labels: Record<string, string> = { all: "전체", news: "📰 뉴스", community: "💬 커뮤니티", blog: "📝 블로그" };
               return (
                 <button
                   key={src}
@@ -226,31 +213,7 @@ function MonitorContent() {
         </div>
       </div>
 
-      {/* 채널 최신 영상 */}
-      {channelVideos.length > 0 && !selectedMember && (selectedSource === "all" || selectedSource === "youtube") && (
-        <div>
-          <h2 className="text-sm font-semibold text-gray-800 dark:text-slate-200 mb-2">📺 채널 최신 영상</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {channelVideos.map((item) => (
-              <a
-                key={item.id}
-                href={item.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-500/50 transition-all group"
-              >
-                <span className="text-2xl">📺</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 truncate transition-colors">{item.title}</p>
-                  <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-0.5">{item.source}</p>
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 뉴스/커뮤니티 결과 */}
+      {/* 결과 */}
       <div className="text-xs text-gray-500 dark:text-slate-400">
         검색 결과: <strong className="text-gray-700 dark:text-slate-200">{filteredItems.length}</strong>건
         {searchKeyword && <span className="ml-2">&#34;{searchKeyword}&#34; 검색 중</span>}

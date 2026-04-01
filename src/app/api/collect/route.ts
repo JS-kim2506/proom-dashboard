@@ -34,12 +34,11 @@ export async function POST() {
 
 // Vercel Cron: 매일 AM 7:00 KST (UTC 22:00) 자동 수집
 export async function GET(request: Request) {
+  // Vercel Cron은 CRON_SECRET 없이도 동작하도록 허용
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    // 로컬에서는 CRON_SECRET 없이도 동작
-    if (process.env.VERCEL === "1") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {

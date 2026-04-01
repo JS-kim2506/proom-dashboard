@@ -17,35 +17,9 @@ const YOUTUBE_CHANNELS: Record<string, { channelId: string; groupId: string }> =
   몬놈즈: { channelId: "UC2bZEaGOh_kNm5wBMEj2mGA", groupId: "monnomz" },
 };
 
+// YouTube 채널 영상은 수집하지 않음
+// 피식대학 채널은 십오야, 응답하라 하이스쿨 등 다양한 콘텐츠를 업로드하므로
+// 채널 영상 = 피식대학 콘텐츠가 아님
 export async function collectYouTube(): Promise<CollectedItem[]> {
-  const items: CollectedItem[] = [];
-
-  for (const [name, { channelId, groupId }] of Object.entries(YOUTUBE_CHANNELS)) {
-    const url = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
-
-    try {
-      const feed = await parser.parseURL(url);
-
-      for (const entry of feed.items.slice(0, 5)) {
-        const title = entry.title || "";
-        items.push({
-          id: hashId("yt", entry.id || entry.link || title),
-          title,
-          link: entry.link || "",
-          source: `${name} 채널`,
-          sourceTier: 1,
-          sourceType: "youtube",
-          groupId,
-          keyword: name,
-          publishedAt: entry.pubDate || entry.isoDate || new Date().toISOString(),
-          collectedAt: new Date().toISOString(),
-          alertLevel: detectAlertLevel(title),
-        });
-      }
-    } catch (error) {
-      console.error(`[Tier1] YouTube 수집 실패 (${name}):`, error);
-    }
-  }
-
-  return items;
+  return [];
 }
