@@ -18,7 +18,7 @@ export default function TrendChart({ stats }: Props) {
   }
 
   const chartData = stats.map((s) => ({
-    date: s.date.slice(5),
+    date: s.date?.slice(5) || "??",
     ...GROUPS.reduce(
       (acc, g) => ({ ...acc, [g.name]: s.byGroup[g.id] || 0 }),
       {} as Record<string, number>

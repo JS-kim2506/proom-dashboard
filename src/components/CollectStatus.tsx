@@ -19,7 +19,10 @@ export default function CollectStatus({ collectedAt, stats }: Props) {
   const formatTime = (iso: string) =>
     new Date(iso).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
-  const { tier1, tier2 } = stats.tierStatus;
+  const { tier1, tier2 } = stats?.tierStatus || { 
+    tier1: { success: true, count: 0, errors: [] }, 
+    tier2: { success: true, count: 0, errors: [] } 
+  };
 
   return (
     <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg px-3 py-2 flex-wrap">

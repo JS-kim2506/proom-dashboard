@@ -14,7 +14,7 @@ import Link from "next/link";
 
 export default function HomePage() {
   // --- 상태 관리 ---
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [selectedDate, setSelectedDate] = useState<string>("");
   const [items, setItems] = useState<CollectedItem[]>([]);
   const [stats, setStats] = useState<CollectStats | null>(null);
   const [collectedAt, setCollectedAt] = useState<string | null>(null);
@@ -51,7 +51,14 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => { 
-    fetchData(selectedDate); 
+    // 브라우저 마운트 시점에 오늘 날짜 세팅 (Hydration 오류 방지)
+    if (!selectedDate) {
+      const today = new Date().toISOString().split("T")[0];
+      setSelectedDate(today);
+      fetchData(today);
+    } else {
+      fetchData(selectedDate);
+    }
   }, [fetchData, selectedDate]);
 
   // --- 핸들러 ---
