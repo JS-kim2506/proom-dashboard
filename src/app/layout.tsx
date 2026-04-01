@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
+import { FubaoFloating } from "@/components/FubaoEasterEgg";
 
 export const metadata: Metadata = {
   title: "푸름의 모니터링 대시보드",
@@ -19,6 +20,7 @@ export default function RootLayout({
         <main className="lg:ml-56 pt-14 lg:pt-0 min-h-screen">
           {children}
         </main>
+        <FubaoFloating />
       </body>
     </html>
   );

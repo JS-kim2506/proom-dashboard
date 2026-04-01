@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 
 // === 1. 로딩 메시지 ===
 const LOADING_MESSAGES = [
@@ -41,54 +41,47 @@ export function FubaoEmptyState({ message }: { message?: string }) {
   );
 }
 
-// === 3. 클릭 이스터에그 (헤더 로고를 여러번 클릭) ===
-export function FubaoClickEgg({ children }: { children: React.ReactNode }) {
-  const [clicks, setClicks] = useState(0);
-  const [showPanda, setShowPanda] = useState(false);
-  const [pandaPos, setPandaPos] = useState({ x: 0, y: 0 });
+// === 3. 오른쪽 하단 푸바오 플로팅 버튼 ===
+const FUBAO_QUOTES = [
+  "오늘도 화이팅이다 바오! 🎋",
+  "대나무 먹고 싶다... 🌿",
+  "푸름아 안녕~ 👋",
+  "놀아줘~ 심심해 🐾",
+  "바오는 행복해! ✨",
+  "간식 줘... 배고파 🍎",
+  "오늘 뉴스 많다 바오! 📰",
+  "뒤뚱뒤뚱~ 🐼",
+  "아이바오 보고 싶다... 💕",
+  "나무 올라갈 거야! 🌳",
+];
 
-  const handleClick = useCallback(() => {
-    setClicks((prev) => {
-      const next = prev + 1;
-      if (next >= 7) {
-        setShowPanda(true);
-        setPandaPos({
-          x: Math.random() * 60 + 20,
-          y: Math.random() * 40 + 30,
-        });
-        setTimeout(() => setShowPanda(false), 3000);
-        return 0;
-      }
-      return next;
-    });
-  }, []);
+export function FubaoFloating() {
+  const [open, setOpen] = useState(false);
+  const [quote, setQuote] = useState("");
 
-  // 클릭 카운트 리셋 (3초 이내에 연속 클릭해야 함)
-  useEffect(() => {
-    if (clicks > 0 && clicks < 7) {
-      const timer = setTimeout(() => setClicks(0), 3000);
-      return () => clearTimeout(timer);
+  const handleClick = () => {
+    if (!open) {
+      setQuote(FUBAO_QUOTES[Math.floor(Math.random() * FUBAO_QUOTES.length)]);
     }
-  }, [clicks]);
+    setOpen(!open);
+  };
 
   return (
-    <>
-      <div onClick={handleClick} className="cursor-pointer">
-        {children}
-      </div>
-      {showPanda && (
-        <div
-          className="fixed z-[9999] pointer-events-none animate-fubao-appear"
-          style={{ left: `${pandaPos.x}%`, top: `${pandaPos.y}%` }}
-        >
-          <div className="relative">
-            <div className="text-6xl animate-bounce">🐼</div>
-            <div className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap bg-white dark:bg-slate-800 text-xs font-medium text-gray-700 dark:text-slate-200 px-3 py-1.5 rounded-full shadow-lg border border-gray-200 dark:border-slate-700">
-              {["바오는 행복해! 🎋", "대나무 줘! 🌿", "안녕 푸름! 👋", "놀아줘~ 🐾"][Math.floor(Math.random() * 4)]}
-            </div>
-          </div>
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+      {/* 말풍선 */}
+      {open && (
+        <div className="animate-fubao-appear bg-white dark:bg-slate-800 text-sm text-gray-700 dark:text-slate-200 px-4 py-3 rounded-2xl rounded-br-sm shadow-lg border border-gray-200 dark:border-slate-700 max-w-[200px]">
+          <p>{quote}</p>
         </div>
       )}
-    </>
+      {/* 푸바오 버튼 */}
+      <button
+        onClick={handleClick}
+        className={`w-14 h-14 rounded-full bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 shadow-lg flex items-center justify-center text-2xl hover:scale-110 active:scale-95 transition-transform ${open ? "ring-2 ring-indigo-400 ring-offset-2 dark:ring-offset-slate-950" : ""}`}
+        title="푸바오와 대화하기"
+      >
+        🐼
+      </button>
+    </div>
   );
 }

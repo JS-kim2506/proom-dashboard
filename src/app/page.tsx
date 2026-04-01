@@ -8,7 +8,7 @@ import AlertBanner from "@/components/AlertBanner";
 import SummaryCards from "@/components/SummaryCards";
 import TrendChart from "@/components/TrendChart";
 import NewsCard from "@/components/NewsCard";
-import { FubaoClickEgg, FubaoEmptyState, getRandomLoadingMessage } from "@/components/FubaoEasterEgg";
+import { FubaoEmptyState, getRandomLoadingMessage } from "@/components/FubaoEasterEgg";
 import Link from "next/link";
 
 export default function HomePage() {
@@ -76,10 +76,10 @@ export default function HomePage() {
     <div className="p-6 max-w-5xl mx-auto space-y-5">
       {/* 헤더 */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <FubaoClickEgg>
+        <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">푸름님, 좋은 아침이에요:)</h1>
           <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">피식대학 · 뷰티풀너드 · 몬놈즈 종합 모니터링</p>
-        </FubaoClickEgg>
+        </div>
         <button
           onClick={handleCollect}
           disabled={isCollecting}
