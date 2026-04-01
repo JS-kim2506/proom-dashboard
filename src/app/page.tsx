@@ -22,6 +22,7 @@ export default function HomePage() {
   const [isCollecting, setIsCollecting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [aiDigest, setAiDigest] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   // --- 데이터 패칭 ---
   const fetchData = useCallback(async (date: string) => {
@@ -51,7 +52,8 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => { 
-    // 브라우저 마운트 시점에 오늘 날짜 세팅 (Hydration 오류 방지)
+    setIsMounted(true); // 마운트 완료 신호 (Hydration 오류 방지)
+    
     if (!selectedDate) {
       const today = new Date().toISOString().split("T")[0];
       setSelectedDate(today);
@@ -94,6 +96,10 @@ export default function HomePage() {
   const sortedItems = [...items].sort((a, b) =>
     new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
   );
+
+  if (!isMounted) {
+    return <div className="flex items-center justify-center h-96 text-gray-400 dark:text-slate-500">대시보드를 준비 중입니다...</div>;
+  }
 
   if (loading && items.length === 0) {
     return <div className="flex items-center justify-center h-96 text-gray-400 dark:text-slate-500">{getRandomLoadingMessage()}</div>;
@@ -142,10 +148,12 @@ export default function HomePage() {
       />
       
       {/* 분석 차트 영역 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <TrendChart stats={dailyStats} />
-        <ShareChart byGroup={stats?.byGroup || {}} />
-      </div>
+      {isMounted && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <TrendChart stats={dailyStats} />
+          <ShareChart byGroup={stats?.byGroup || {}} />
+        </div>
+      )}
 
       {/* AI 데일리 브리핑 (New) */}
       {items.length > 0 && (
