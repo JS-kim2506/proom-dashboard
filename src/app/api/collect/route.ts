@@ -6,8 +6,14 @@ export const maxDuration = 120;
 
 export async function POST() {
   try {
+    console.log("[POST /api/collect] 수집 시작...");
+    const startTime = Date.now();
     const { result, trends, categoryNews } = await runCollection();
+    console.log(`[POST /api/collect] 수집 완료: ${result.stats.total}건 (${((Date.now() - startTime) / 1000).toFixed(1)}초)`);
+    console.log("[POST /api/collect] stats:", JSON.stringify(result.stats));
+
     await saveCollectResult(result, trends, categoryNews);
+    console.log("[POST /api/collect] 저장 완료");
 
     return NextResponse.json({
       success: true,
@@ -15,8 +21,12 @@ export async function POST() {
       stats: result.stats,
     });
   } catch (error) {
+    console.error("[POST /api/collect] 실패:", error);
     return NextResponse.json(
-      { success: false, message: String(error) },
+      {
+        success: false,
+        message: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }
@@ -41,8 +51,12 @@ export async function GET(request: Request) {
       message: `Cron 수집 완료: ${result.stats.total}건`,
     });
   } catch (error) {
+    console.error("[GET /api/collect] Cron 실패:", error);
     return NextResponse.json(
-      { success: false, message: String(error) },
+      { 
+        success: false, 
+        message: error instanceof Error ? error.message : String(error) 
+      },
       { status: 500 }
     );
   }

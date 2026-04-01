@@ -1,14 +1,20 @@
 import Parser from "rss-parser";
 import * as cheerio from "cheerio";
+import crypto from "crypto";
 import { CollectedItem, TrendTopic, NEWS_CATEGORIES } from "../types";
 import { detectAlertLevel } from "../alertKeywords";
 import { isRelevantArticle } from "../keywords";
 
+function hashId(prefix: string, str: string): string {
+  return `${prefix}-${crypto.createHash("md5").update(str).digest("hex").slice(0, 16)}`;
+}
+
 const parser = new Parser({
   headers: {
-    "User-Agent": "Mozilla/5.0 (compatible; MonitoringBot/1.0)",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.8",
   },
-  timeout: 15000,
+  timeout: 20000,
 });
 
 export async function collectGoogleNews(
@@ -30,7 +36,7 @@ export async function collectGoogleNews(
       if (!isRelevantArticle(title, snippet, groupId, memberName)) continue;
 
       items.push({
-        id: `gnews-${Buffer.from(entry.link || title).toString("base64").slice(0, 20)}-${Date.now()}`,
+        id: hashId("gnews", entry.link || title),
         title,
         link: entry.link || "",
         source: "Google News",

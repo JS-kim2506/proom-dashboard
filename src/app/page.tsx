@@ -45,9 +45,19 @@ export default function HomePage() {
     try {
       const res = await fetch("/api/collect", { method: "POST" });
       const result = await res.json();
-      if (result.success) await fetchData();
+      if (result.success) {
+        await fetchData();
+        if (result.stats && result.stats.total === 0) {
+          alert("수집은 완료되었으나 검색 결과가 0건입니다. 잠시 후 다시 시도하거나 키워드 설정을 확인해주세요.");
+        } else {
+          alert(`수집 완료: ${result.stats?.total || 0}건의 새로운 데이터를 가져왔습니다.`);
+        }
+      } else {
+        alert(`수집패 중: ${result.message}`);
+      }
     } catch (e) {
       console.error(e);
+      alert("수집 요청 중 오류가 발생했습니다. 네트워크 상태를 확인해주세요.");
     } finally {
       setIsCollecting(false);
     }

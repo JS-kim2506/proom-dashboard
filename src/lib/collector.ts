@@ -33,10 +33,10 @@ export async function runCollection(): Promise<{ result: CollectResult; trends: 
   const keywords = getAllSearchKeywords();
   const groupKeywords = keywords.filter((k) => !k.memberName);
 
-  console.log(`[수집] 전체 병렬 수집 시작...`);
+  console.log(`[수집] 전 병렬 수집 시작... (키워드 수: ${keywords.length})`);
   const startTime = Date.now();
 
-  // === 모든 수집을 병렬로 실행 ===
+  // === 모든 수집을 병행로 실행 ===
   const [
     googleNewsResults,
     youtubeResult,
@@ -50,29 +50,51 @@ export async function runCollection(): Promise<{ result: CollectResult; trends: 
       keywords.map(({ keyword, groupId, memberName }) =>
         safeCollect(() => collectGoogleNews(keyword, groupId, memberName), `Google News (${keyword})`)
       )
-    ),
+    ).then((res) => {
+      const count = res.reduce((acc, r) => acc + r.items.length, 0);
+      console.log(`[Tier1] Google News 완료: ${count}건`);
+      return res;
+    }),
     // Tier 1: YouTube
-    safeCollect(() => collectYouTube(), "YouTube"),
+    safeCollect(() => collectYouTube(), "YouTube").then((res) => {
+      console.log(`[Tier1] YouTube 완료: ${res.items.length}건`);
+      return res;
+    }),
     // Tier 1: 트렌드
-    safeCollect(() => collectTrendTopics(), "트렌드"),
+    safeCollect(() => collectTrendTopics(), "트렌드").then((res) => {
+      console.log(`[Tier1] 트랜드 완료: ${res.items.length}건`);
+      return res;
+    }),
     // Tier 2: 네이버 뉴스 - 그룹 키워드 병렬
     Promise.all(
       groupKeywords.map(({ keyword, groupId, memberName }) =>
         safeCollect(() => collectNaverNews(keyword, groupId, memberName), `네이버뉴스 (${keyword})`)
       )
-    ),
+    ).then((res) => {
+      const count = res.reduce((acc, r) => acc + r.items.length, 0);
+      console.log(`[Tier2] 네이버 뉴스 완료: ${count}건`);
+      return res;
+    }),
     // Tier 2: 네이버 블로그 - 그룹 키워드 병렬
     Promise.all(
       groupKeywords.map(({ keyword, groupId, memberName }) =>
         safeCollect(() => collectNaverBlog(keyword, groupId, memberName), `네이버블로그 (${keyword})`)
       )
-    ),
+    ).then((res) => {
+      const count = res.reduce((acc, r) => acc + r.items.length, 0);
+      console.log(`[Tier2] 네이버 블로그 완료: ${count}건`);
+      return res;
+    }),
     // Tier 2: 커뮤니티 - 그룹 키워드 병렬
     Promise.all(
       groupKeywords.map(({ keyword, groupId, memberName }) =>
         safeCollect(() => collectCommunity(keyword, groupId, memberName), `커뮤니티 (${keyword})`)
       )
-    ),
+    ).then((res) => {
+      const count = res.reduce((acc, r) => acc + r.items.length, 0);
+      console.log(`[Tier2] 커뮤니티 완료: ${count}건`);
+      return res;
+    }),
   ]);
 
   // 결과 집계

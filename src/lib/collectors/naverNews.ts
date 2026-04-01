@@ -1,7 +1,12 @@
 import * as cheerio from "cheerio";
+import crypto from "crypto";
 import { CollectedItem } from "../types";
 import { detectAlertLevel } from "../alertKeywords";
 import { isRelevantArticle } from "../keywords";
+
+function hashId(prefix: string, str: string): string {
+  return `${prefix}-${crypto.createHash("md5").update(str).digest("hex").slice(0, 16)}`;
+}
 
 const DELAY_MS = 2000;
 const MAX_RETRIES = 3;
@@ -53,7 +58,7 @@ export async function collectNaverNews(
       if (!title || !isRelevantArticle(title, snippet, groupId, memberName)) return;
 
       items.push({
-        id: `naver-${Buffer.from(link || title).toString("base64").slice(0, 20)}-${Date.now()}`,
+        id: hashId("naver", link || title),
         title,
         link,
         source: press ? `네이버 (${press})` : "네이버 뉴스",
@@ -97,7 +102,7 @@ export async function collectNaverBlog(
       if (!title || !isRelevantArticle(title, undefined, groupId, memberName)) return;
 
       items.push({
-        id: `nblog-${Buffer.from(link || title).toString("base64").slice(0, 20)}-${Date.now()}`,
+        id: hashId("nblog", link || title),
         title,
         link,
         source: "네이버 블로그",

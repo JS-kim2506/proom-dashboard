@@ -1,6 +1,11 @@
 import Parser from "rss-parser";
+import crypto from "crypto";
 import { CollectedItem } from "../types";
 import { detectAlertLevel } from "../alertKeywords";
+
+function hashId(prefix: string, str: string): string {
+  return `${prefix}-${crypto.createHash("md5").update(str).digest("hex").slice(0, 16)}`;
+}
 
 const parser = new Parser({
   timeout: 10000,
@@ -24,7 +29,7 @@ export async function collectYouTube(): Promise<CollectedItem[]> {
       for (const entry of feed.items.slice(0, 5)) {
         const title = entry.title || "";
         items.push({
-          id: `yt-${entry.id || Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          id: hashId("yt", entry.id || entry.link || title),
           title,
           link: entry.link || "",
           source: `YouTube (${name})`,

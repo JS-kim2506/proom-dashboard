@@ -5,11 +5,18 @@ const isVercel = process.env.VERCEL === "1" || !!process.env.KV_REST_API_URL;
 
 // ========== Redis 기반 (Vercel) ==========
 async function getRedis() {
+  const url = process.env.KV_REST_API_URL;
+  const token = process.env.KV_REST_API_TOKEN;
+
+  if (!url || !token) {
+    throw new Error(
+      "Redis 설정(KV_REST_API_URL / KV_REST_API_TOKEN)이 없습니다. " +
+      "Vercel 대시보드에서 Upstash Redis를 연결했는지 확인해주세요."
+    );
+  }
+
   const { Redis } = await import("@upstash/redis");
-  return new Redis({
-    url: process.env.KV_REST_API_URL!,
-    token: process.env.KV_REST_API_TOKEN!,
-  });
+  return new Redis({ url, token });
 }
 
 async function redisSave(key: string, data: unknown) {

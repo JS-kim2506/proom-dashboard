@@ -1,6 +1,11 @@
 import * as cheerio from "cheerio";
+import crypto from "crypto";
 import { CollectedItem } from "../types";
 import { detectAlertLevel } from "../alertKeywords";
+
+function hashId(prefix: string, str: string): string {
+  return `${prefix}-${crypto.createHash("md5").update(str).digest("hex").slice(0, 16)}`;
+}
 
 const DELAY_MS = 2000;
 
@@ -50,7 +55,7 @@ export async function collectCommunity(
       else if (link.includes("fmkorea")) sourceName = "에펨코리아";
 
       items.push({
-        id: `comm-${Buffer.from(link || title).toString("base64").slice(0, 20)}-${Date.now()}`,
+        id: hashId("comm", link || title),
         title,
         link,
         source: sourceName,
