@@ -21,6 +21,7 @@ export default function HomePage() {
   const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
   const [isCollecting, setIsCollecting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [aiDigest, setAiDigest] = useState<string | null>(null);
 
   // --- 데이터 패칭 ---
   const fetchData = useCallback(async (date: string) => {
@@ -40,6 +41,7 @@ export default function HomePage() {
       setItems(latest.items || []);
       setStats(latest.stats || null);
       setCollectedAt(latest.collectedAt || null);
+      setAiDigest(latest.aiDigest || null);
       setDailyStats(statsData || []);
     } catch (e) {
       console.error("[Fetch Error]:", e);
@@ -61,6 +63,7 @@ export default function HomePage() {
       if (result.success) {
         setSelectedDate(new Date().toISOString().split("T")[0]); // 오늘 날짜로 이동
         await fetchData(new Date().toISOString().split("T")[0]);
+        if (result.aiDigest) setAiDigest(result.aiDigest);
         alert(`수집 완료: ${result.stats?.total || 0}건의 새로운 데이터를 가져왔습니다.`);
       } else {
         alert(`수집 실패: ${result.message}`);
@@ -157,8 +160,7 @@ export default function HomePage() {
             )}
             {/* API에서 온 Digest 내용 출력 */}
             <div className="prose dark:prose-invert max-w-none text-sm">
-              {/* @ts-ignore (HTML/MD 믹스 처리를 위해 일단 출력) */}
-              {(items as any).aiDigest || (loading ? "분석 중..." : "오늘의 주요 이슈를 분석하고 있습니다.")}
+              {aiDigest || (loading ? "분석 중..." : "오늘의 주요 이슈를 분석하고 있습니다.")}
             </div>
           </div>
         </div>
