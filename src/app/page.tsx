@@ -32,18 +32,25 @@ export default function HomePage() {
       const resultUrl = isToday ? "/api/data?type=latest" : `/api/data?type=latest&date=${date}`;
       
       const [latestRes, statsRes] = await Promise.all([
-        fetch(resultUrl),
-        fetch("/api/data?type=stats"),
+        fetch(resultUrl).catch(() => null),
+        fetch("/api/data?type=stats").catch(() => null),
       ]);
       
-      const latest = await latestRes.json();
-      const statsData = await statsRes.json();
+      let latest: any = { items: [], stats: null, collectedAt: null, aiDigest: null };
+      let statsData: any = [];
 
-      setItems(latest.items || []);
-      setStats(latest.stats || null);
-      setCollectedAt(latest.collectedAt || null);
-      setAiDigest(latest.aiDigest || null);
-      setDailyStats(statsData || []);
+      if (latestRes && latestRes.ok) {
+        try { latest = await latestRes.json(); } catch(e) { console.error("JSON Error"); }
+      }
+      if (statsRes && statsRes.ok) {
+        try { statsData = await statsRes.json(); } catch(e) { console.error("JSON Error"); }
+      }
+
+      setItems(Array.isArray(latest?.items) ? latest.items : []);
+      setStats(latest?.stats || null);
+      setCollectedAt(latest?.collectedAt || null);
+      setAiDigest(latest?.aiDigest || null);
+      setDailyStats(Array.isArray(statsData) ? statsData : []);
     } catch (e) {
       console.error("[Fetch Error]:", e);
     } finally {
