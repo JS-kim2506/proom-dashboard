@@ -8,6 +8,7 @@ import AlertBanner from "@/components/AlertBanner";
 import SummaryCards from "@/components/SummaryCards";
 import TrendChart from "@/components/TrendChart";
 import NewsCard from "@/components/NewsCard";
+import { FubaoClickEgg, FubaoEmptyState, getRandomLoadingMessage } from "@/components/FubaoEasterEgg";
 import Link from "next/link";
 
 export default function HomePage() {
@@ -68,23 +69,23 @@ export default function HomePage() {
   );
 
   if (loading) {
-    return <div className="flex items-center justify-center h-96 text-gray-400 dark:text-slate-500">로딩 중...</div>;
+    return <div className="flex items-center justify-center h-96 text-gray-400 dark:text-slate-500">{getRandomLoadingMessage()}</div>;
   }
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-5">
       {/* 헤더 */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+        <FubaoClickEgg>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">푸름님, 좋은 아침이에요:)</h1>
           <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">피식대학 · 뷰티풀너드 · 몬놈즈 종합 모니터링</p>
-        </div>
+        </FubaoClickEgg>
         <button
           onClick={handleCollect}
           disabled={isCollecting}
           className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {isCollecting ? "⏳ 수집 중..." : "🔄 새로고침"}
+          {isCollecting ? "🐼 푸바오가 수집 중..." : "🔄 새로고침"}
         </button>
       </div>
 
@@ -115,9 +116,7 @@ export default function HomePage() {
             <NewsCard key={item.id} item={item} />
           ))}
           {sortedItems.length === 0 && (
-            <div className="text-center text-sm text-gray-400 dark:text-slate-500 py-12">
-              데이터가 없습니다. 새로고침 버튼을 눌러 3개월치 데이터를 수집하세요.
-            </div>
+            <FubaoEmptyState />
           )}
         </div>
       </div>

@@ -5,12 +5,13 @@ import { useSearchParams } from "next/navigation";
 import { GROUPS } from "@/lib/keywords";
 import type { CollectedItem } from "@/lib/types";
 import NewsCard from "@/components/NewsCard";
+import { FubaoEmptyState, getRandomLoadingMessage } from "@/components/FubaoEasterEgg";
 
 type SourceFilter = "all" | "news" | "community" | "youtube" | "blog";
 
 export default function MonitorPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center h-96 text-gray-400 dark:text-slate-500">로딩 중...</div>}>
+    <Suspense fallback={<div className="flex items-center justify-center h-96 text-gray-400 dark:text-slate-500">{getRandomLoadingMessage()}</div>}>
       <MonitorContent />
     </Suspense>
   );
@@ -96,7 +97,7 @@ function MonitorContent() {
   }, [items, selectedGroup]);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-96 text-gray-400 dark:text-slate-500">로딩 중...</div>;
+    return <div className="flex items-center justify-center h-96 text-gray-400 dark:text-slate-500">{getRandomLoadingMessage()}</div>;
   }
 
   return (
@@ -225,9 +226,7 @@ function MonitorContent() {
           <NewsCard key={item.id} item={item} />
         ))}
         {filteredItems.length === 0 && (
-          <div className="text-center text-sm text-gray-400 dark:text-slate-500 py-12">
-            해당 조건에 맞는 데이터가 없습니다.
-          </div>
+          <FubaoEmptyState message="푸바오가 뒤져봤는데... 해당 조건에 맞는 데이터가 없대요!" />
         )}
       </div>
     </div>

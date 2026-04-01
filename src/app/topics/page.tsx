@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { TrendTopic, NewsCategory } from "@/lib/types";
+import { FubaoEmptyState, getRandomLoadingMessage } from "@/components/FubaoEasterEgg";
 
 const TABS: { id: NewsCategory; label: string; icon: string }[] = [
   { id: "politics", label: "정치", icon: "🏛️" },
@@ -39,7 +40,7 @@ export default function TopicsPage() {
   const restFive = currentNews.slice(5, 10);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-96 text-gray-400 dark:text-slate-500">로딩 중...</div>;
+    return <div className="flex items-center justify-center h-96 text-gray-400 dark:text-slate-500">{getRandomLoadingMessage()}</div>;
   }
 
   return (
@@ -119,9 +120,7 @@ export default function TopicsPage() {
           </div>
         </div>
       ) : (
-        <div className="text-center text-sm text-gray-400 dark:text-slate-500 py-12">
-          이 카테고리의 뉴스가 없습니다. 새로고침을 눌러 수집하세요.
-        </div>
+        <FubaoEmptyState message="푸바오가 이 카테고리 뉴스를 찾고 있어요... 새로고침 해볼까요?" />
       )}
 
       {/* 나머지 5개: 리스트만 */}
