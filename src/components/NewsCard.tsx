@@ -58,39 +58,39 @@ function timeAgo(dateStr: string): string {
 export default function NewsCard({ item }: Props) {
   return (
     <a
-      href={item.link}
+      href={item?.link ?? "#"}
       target="_blank"
       rel="noopener noreferrer"
       className="group flex gap-3 p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-sm transition-all"
     >
       {/* 좌측: 소스 아이콘 */}
       <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-gray-50 dark:bg-slate-800 flex items-center justify-center text-lg">
-        {SOURCE_ICONS[item.sourceType] || "📄"}
+        {SOURCE_ICONS[item?.sourceType ?? ""] || "📄"}
       </div>
 
       {/* 중앙: 콘텐츠 */}
       <div className="flex-1 min-w-0">
         <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 line-clamp-1 transition-colors">
-          {item.title}
+          {item?.title ?? "제목 없음"}
         </h3>
-        {item.snippet && (
+        {item?.snippet && (
           <p className="text-xs text-gray-500 dark:text-slate-400 line-clamp-1 mt-0.5">{item.snippet}</p>
         )}
         <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${SOURCE_STYLES[item.sourceType] || ""}`}>
-            {item.source}
+          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${SOURCE_STYLES[item?.sourceType ?? ""] || ""}`}>
+            {item?.source ?? "정보 없음"}
           </span>
-          {item.memberName && (
+          {item?.memberName && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300 font-medium">
               {item.memberName}
             </span>
           )}
-          {item.alertLevel && (
+          {item?.alertLevel && (
             <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${ALERT_STYLES[item.alertLevel] || ""}`}>
               {item.alertLevel === "critical" ? "🚨" : item.alertLevel === "warning" ? "⚠️" : "ℹ️"} {item.alertLevel}
             </span>
           )}
-          {item.sentiment !== undefined && (
+          {item?.sentiment !== undefined && (
             <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
               item.sentiment >= 70 ? "bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-300" :
               item.sentiment <= 30 ? "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300" :
@@ -104,7 +104,7 @@ export default function NewsCard({ item }: Props) {
 
       {/* 우측: 시간 */}
       <div className="flex-shrink-0 text-[11px] text-gray-400 dark:text-slate-500 whitespace-nowrap pt-0.5">
-        {timeAgo(item.publishedAt)}
+        {timeAgo(item?.publishedAt ?? "")}
       </div>
     </a>
   );

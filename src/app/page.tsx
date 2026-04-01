@@ -93,9 +93,11 @@ export default function HomePage() {
 
   const isLatest = selectedDate === new Date().toISOString().split("T")[0];
 
-  const sortedItems = [...items].sort((a, b) =>
-    new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-  );
+  const sortedItems = items
+    .filter((item) => item && item.publishedAt) // 유효성 검사 추가
+    .sort((a, b) =>
+      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    );
 
   if (!isMounted) {
     return <div className="flex items-center justify-center h-96 text-gray-400 dark:text-slate-500">대시보드를 준비 중입니다...</div>;

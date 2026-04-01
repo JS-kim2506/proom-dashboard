@@ -17,13 +17,15 @@ export default function TrendChart({ stats }: Props) {
     );
   }
 
-  const chartData = stats.map((s) => ({
-    date: s.date?.slice(5) || "??",
-    ...GROUPS.reduce(
-      (acc, g) => ({ ...acc, [g.name]: s.byGroup[g.id] || 0 }),
-      {} as Record<string, number>
-    ),
-  }));
+  const chartData = stats
+    .filter((s) => s && s.date) // 유효성 검사 추가
+    .map((s) => ({
+      date: s.date?.slice(5) || "??",
+      ...GROUPS.reduce(
+        (acc, g) => ({ ...acc, [g.name]: s.byGroup?.[g.id] || 0 }),
+        {} as Record<string, number>
+      ),
+    }));
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 p-5">
