@@ -119,7 +119,9 @@ async function saveStatsRedis(result: CollectResult) {
   const idx = stats.findIndex((s) => s.date === result.date);
   if (idx >= 0) stats[idx] = dailyStat;
   else stats.push(dailyStat);
-  await redisSave("daily-stats", stats.slice(-30));
+  
+  // 90일(3개월)치 보관
+  await redisSave("daily-stats", stats.sort((a,b) => a.date.localeCompare(b.date)).slice(-90));
 }
 
 function updateStatsFile(result: CollectResult) {
@@ -128,35 +130,64 @@ function updateStatsFile(result: CollectResult) {
   const idx = stats.findIndex((s) => s.date === result.date);
   if (idx >= 0) stats[idx] = dailyStat;
   else stats.push(dailyStat);
-  fileSave("stats.json", stats.slice(-30));
+  
+  // 90일(3개월)치 보관
+  fileSave("stats.json", stats.sort((a,b) => a.date.localeCompare(b.date)).slice(-90));
 }
 
 export async function getResultByDate(date: string): Promise<CollectResult | null> {
-  if (isVercel) return redisGet<CollectResult>(`result-${date}`);
-  return fileGet<CollectResult>(`${date}.json`);
+  let data = null;
+  if (isVercel) data = await redisGet<CollectResult>(`result-${date}`);
+  if (!data) data = fileGet<CollectResult>(`${date}.json`); // Fallback to file
+  return data;
 }
 
 export async function getTrendsByDate(date: string): Promise<TrendTopic[]> {
-  if (isVercel) return (await redisGet<TrendTopic[]>(`trends-${date}`)) || [];
-  return fileGet<TrendTopic[]>(`trends-${date}.json`) || [];
+  let data = null;
+  if (isVercel) data = await redisGet<TrendTopic[]>(`trends-${date}`);
+  if (!data) data = fileGet<TrendTopic[]>(`trends-${date}.json`); // Fallback to file
+  return data || [];
 }
 
 export async function getLatestResult(): Promise<CollectResult | null> {
-  if (isVercel) return redisGet<CollectResult>("latest-result");
-  return fileGetLatest<CollectResult>("");
+  let data = null;
+  if (isVercel) data = await redisGet<CollectResult>("latest-result");
+  if (!data) data = fileGetLatest<CollectResult>(""); // Fallback to file
+  return data;
 }
 
 export async function getLatestTrends(): Promise<TrendTopic[]> {
-  if (isVercel) return (await redisGet<TrendTopic[]>("latest-trends")) || [];
-  return fileGetLatest<TrendTopic[]>("trends-") || [];
+  let data = null;
+  if (isVercel) data = await redisGet<TrendTopic[]>("latest-trends");
+  if (!data) data = fileGetLatest<TrendTopic[]>("trends-"); // Fallback to file
+  return data || [];
 }
 
 export async function getLatestCategoryNews(): Promise<Record<string, TrendTopic[]>> {
-  if (isVercel) return (await redisGet<Record<string, TrendTopic[]>>("latest-categories")) || {};
-  return fileGetLatest<Record<string, TrendTopic[]>>("categories-") || {};
+  let data = null;
+  if (isVercel) data = await redisGet<Record<string, TrendTopic[]>>("latest-categories");
+  if (!data) data = fileGetLatest<Record<string, TrendTopic[]>>("categories-"); // Fallback to file
+  return data || {};
 }
 
 export async function getStats(): Promise<DailyStats[]> {
-  if (isVercel) return (await redisGet<DailyStats[]>("daily-stats")) || [];
-  return fileGet<DailyStats[]>("stats.json") || [];
+  let stats: DailyStats[] = [];
+  
+  if (isVercel) {
+    stats = (await redisGet<DailyStats[]>("daily-stats")) || [];
+    
+    // 만약 Redis 통계가 부족하면 파일 시스템(Git에 포함된 과거 데이터)과 병합
+    const fileStats = fileGet<DailyStats[]>("stats.json") || [];
+    if (fileStats.length > stats.length) {
+      const mergedMap = new Map();
+      [...fileStats, ...stats].forEach(s => mergedMap.set(s.date, s));
+      stats = Array.from(mergedMap.values()).sort((a,b) => a.date.localeCompare(b.date));
+      // 병합된 결과 Redis에 백업 제안 (캐시 동기화)
+      await redisSave("daily-stats", stats.slice(-90));
+    }
+  } else {
+    stats = fileGet<DailyStats[]>("stats.json") || [];
+  }
+  
+  return stats;
 }

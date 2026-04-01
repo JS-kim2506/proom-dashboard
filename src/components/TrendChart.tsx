@@ -31,7 +31,13 @@ export default function TrendChart({ stats }: Props) {
       <ResponsiveContainer width="100%" height={260}>
         <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-          <XAxis dataKey="date" fontSize={11} stroke="var(--muted)" />
+          <XAxis 
+            dataKey="date" 
+            fontSize={11} 
+            stroke="var(--muted)" 
+            interval="preserveStartEnd" // 데이터가 많아질 때 레이블 자동 조절
+            minTickGap={20}
+          />
           <YAxis fontSize={11} stroke="var(--muted)" />
           <Tooltip
             contentStyle={{
@@ -50,7 +56,7 @@ export default function TrendChart({ stats }: Props) {
               dataKey={group.name}
               stroke={group.color}
               strokeWidth={2}
-              dot={{ r: 2 }}
+              dot={stats.length > 30 ? false : { r: 2 }} // 30일 넘으면 점 생략하여 가독성 확보
               activeDot={{ r: 4 }}
             />
           ))}
