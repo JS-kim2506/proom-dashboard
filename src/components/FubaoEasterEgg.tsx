@@ -77,7 +77,7 @@ export function FubaoFloating() {
       {/* 푸바오 버튼 */}
       <button
         onClick={handleClick}
-        className={`w-14 h-14 rounded-full bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 shadow-lg flex items-center justify-center text-2xl hover:scale-110 active:scale-95 transition-transform ${open ? "ring-2 ring-indigo-400 ring-offset-2 dark:ring-offset-slate-950" : ""}`}
+        className={`w-14 h-14 rounded-full bg-green-100 dark:bg-green-900 border-2 border-green-300 dark:border-green-600 shadow-[0_4px_20px_rgba(34,197,94,0.3)] flex items-center justify-center text-3xl hover:scale-110 active:scale-95 transition-transform ${open ? "ring-2 ring-green-400 ring-offset-2 dark:ring-offset-slate-950" : ""}`}
         title="푸바오와 대화하기"
       >
         🐼
