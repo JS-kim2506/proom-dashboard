@@ -4,6 +4,69 @@ import { useState, useEffect } from "react";
 import type { TrendTopic, NewsCategory } from "@/lib/types";
 import { FubaoEmptyState, getRandomLoadingMessage } from "@/components/FubaoEasterEgg";
 
+function ArchiveButton({ topic }: { topic: TrendTopic }) {
+  const [archived, setArchived] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // 고유 ID 생성
+  const topicId = `topic-${btoa(encodeURIComponent(topic.title)).slice(0, 16)}`;
+
+  const toggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (loading) return;
+
+    setLoading(true);
+    try {
+      if (archived) {
+        await fetch(`/api/archive?id=${topicId}`, { method: "DELETE" });
+      } else {
+        await fetch("/api/archive", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: topicId,
+            title: topic.title,
+            link: topic.link,
+            source: topic.source,
+            sourceTier: 1,
+            sourceType: "news" as const,
+            groupId: "topics",
+            keyword: "탑토픽",
+            publishedAt: topic.publishedAt,
+            collectedAt: new Date().toISOString(),
+            snippet: topic.summary || topic.snippet || "",
+          }),
+        });
+      }
+      setArchived(!archived);
+    } catch (error) {
+      console.error("Archive toggle failed:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={toggle}
+      disabled={loading}
+      className={`flex-shrink-0 p-1.5 rounded-lg transition-colors ${
+        archived
+          ? "text-rose-500 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20"
+          : "text-gray-300 dark:text-slate-600 hover:text-gray-500 hover:bg-gray-100 dark:hover:text-slate-400 dark:hover:bg-slate-800"
+      }`}
+      title={archived ? "아카이브 제거" : "아카이브 저장"}
+    >
+      {archived ? (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      ) : (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      )}
+    </button>
+  );
+}
+
 const TABS: { id: NewsCategory; label: string; icon: string }[] = [
   { id: "politics", label: "정치", icon: "🏛️" },
   { id: "society", label: "사회", icon: "👥" },
@@ -113,6 +176,7 @@ export default function TopicsPage() {
                         <span>{timeAgo(topic.publishedAt)}</span>
                       </div>
                     </div>
+                    <ArchiveButton topic={topic} />
                   </div>
                 </div>
               </a>
@@ -149,6 +213,7 @@ export default function TopicsPage() {
                 <div className="text-[11px] text-gray-400 dark:text-slate-500 flex-shrink-0">
                   {topic.source} · {timeAgo(topic.publishedAt)}
                 </div>
+                <ArchiveButton topic={topic} />
               </a>
             ))}
           </div>
