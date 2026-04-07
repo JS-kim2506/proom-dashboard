@@ -46,6 +46,7 @@ function fileSave(filename: string, data: unknown) {
 }
 
 function fileGet<T>(filename: string): T | null {
+  if (isVercel) return null; // Vercel에서는 파일시스템 사용 불가
   const { fs, path, DATA_DIR } = getFs();
   const filePath = path.join(DATA_DIR, filename);
   if (!fs.existsSync(filePath)) return null;
@@ -57,6 +58,7 @@ function fileGet<T>(filename: string): T | null {
 }
 
 function fileGetLatest<T>(prefix: string): T | null {
+  if (isVercel) return null; // Vercel에서는 파일시스템 사용 불가
   const { fs, path, DATA_DIR } = getFs();
   const files = fs.readdirSync(DATA_DIR)
     .filter((f: string) => f.startsWith(prefix) || f.match(/^\d{4}-\d{2}-\d{2}\.json$/))
