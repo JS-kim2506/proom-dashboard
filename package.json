@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "collect": "tsx scripts/collect.ts"
+    "collect": "tsx scripts/collect.ts",
+    "backfill": "tsx scripts/backfill-3months.ts"
   },
   "dependencies": {
     "@upstash/redis": "^1.37.0",

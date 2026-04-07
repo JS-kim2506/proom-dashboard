@@ -73,11 +73,18 @@ async function fetchWithRetry(url: string, retries = MAX_RETRIES): Promise<strin
 export async function collectNaverNews(
   keyword: string,
   groupId: string,
-  memberName?: string
+  memberName?: string,
+  targetDate?: string // YYYY-MM-DD
 ): Promise<CollectedItem[]> {
   const items: CollectedItem[] = [];
   const encodedKeyword = encodeURIComponent(keyword);
-  const url = `https://search.naver.com/search.naver?where=news&query=${encodedKeyword}&sort=1`;
+  
+  let url = `https://search.naver.com/search.naver?where=news&query=${encodedKeyword}&sort=1`;
+  
+  if (targetDate) {
+    const naverDate = targetDate.replace(/-/g, ".");
+    url += `&pd=3&ds=${naverDate}&de=${naverDate}`;
+  }
 
   try {
     const html = await fetchWithRetry(url);
@@ -93,7 +100,7 @@ export async function collectNaverNews(
       if (!title || !isRelevantArticle(title, snippet, groupId, memberName)) return;
 
       const dateStr = $(el).find(".info_group .info").last().text().trim();
-      const publishedAt = parseNaverDate(dateStr);
+      const publishedAt = targetDate ? new Date(targetDate).toISOString() : parseNaverDate(dateStr);
 
       items.push({
         id: hashId("naver", link || title),

@@ -4,16 +4,20 @@ import { saveCollectResult } from "@/lib/dataManager";
 
 export const maxDuration = 120;
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    console.log("[POST /api/collect] 수집 시작...");
+    const body = await request.json().catch(() => ({}));
+    const targetDate = body.date;
+    
+    console.log(`[POST /api/collect] 수집 시작... (대상 날짜: ${targetDate || "오늘"})`);
     const startTime = Date.now();
-    const { result, trends, categoryNews } = await runCollection();
+    const { result, trends, categoryNews } = await runCollection(targetDate);
     console.log(`[POST /api/collect] 수집 완료: ${result.stats.total}건 (${((Date.now() - startTime) / 1000).toFixed(1)}초)`);
     console.log("[POST /api/collect] stats:", JSON.stringify(result.stats));
 
+    console.log(`[POST /api/collect] 결과 데이터 크기: ${JSON.stringify(result).length} bytes`);
     await saveCollectResult(result, trends, categoryNews);
-    console.log("[POST /api/collect] 저장 완료");
+    console.log(`[POST /api/collect] ${result.date} 일자 데이터 저장 완료`);
 
     return NextResponse.json({
       success: true,
@@ -42,8 +46,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { result, trends, categoryNews } = await runCollection();
+    const { searchParams } = new URL(request.url);
+    const targetDate = searchParams.get("date");
+    
+    console.log(`[Cron /api/collect] ${new Date().toISOString()} 자동 수집 실행... (대상 날짜: ${targetDate || "오늘"})`);
+    const { result, trends, categoryNews } = await runCollection(targetDate || undefined);
     await saveCollectResult(result, trends, categoryNews);
+    console.log(`[Cron /api/collect] ${result.date} 자동 수집 및 저장 완료 (총 ${result.stats.total}건)`);
 
     return NextResponse.json({
       success: true,

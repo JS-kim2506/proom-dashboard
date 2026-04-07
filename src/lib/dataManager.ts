@@ -1,4 +1,4 @@
-import type { CollectResult, DailyStats, TrendTopic } from "./types";
+import type { CollectResult, DailyStats, TrendTopic, CollectedItem } from "./types";
 
 // Vercel 배포 시 Upstash Redis 사용, 로컬에서는 파일 시스템 사용
 const isVercel = process.env.VERCEL === "1" || !!process.env.KV_REST_API_URL;
@@ -79,7 +79,7 @@ function fileCleanup() {
   const { fs, path, DATA_DIR } = getFs();
   const files = fs.readdirSync(DATA_DIR);
   const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 30);
+  cutoff.setDate(cutoff.getDate() - 90);
 
   for (const file of files) {
     if (file === "stats.json" || file === ".gitkeep") continue;
@@ -99,9 +99,14 @@ export async function saveCollectResult(
 ) {
   if (isVercel) {
     await Promise.all([
+      // 최신 데이터 갱신
       redisSave("latest-result", result),
       redisSave("latest-trends", trends),
       categoryNews ? redisSave("latest-categories", categoryNews) : Promise.resolve(),
+      // 날짜별 아카이브 저장 (히스토리 조회용)
+      redisSave(`result-${result.date}`, result),
+      redisSave(`trends-${result.date}`, trends),
+      categoryNews ? redisSave(`categories-${result.date}`, categoryNews) : Promise.resolve(),
       saveStatsRedis(result),
     ]);
   } else {
@@ -191,3 +196,45 @@ export async function getStats(): Promise<DailyStats[]> {
   
   return stats;
 }
+
+export async function saveToArchive(item: CollectedItem) {
+  if (isVercel) {
+    const items = (await redisGet<CollectedItem[]>("archived-items")) || [];
+    if (!items.find((i: CollectedItem) => i.id === item.id)) {
+      items.unshift(item);
+      await redisSave("archived-items", items);
+    }
+  } else {
+    let items = fileGet<CollectedItem[]>("archived-items.json") || [];
+    if (!items.find((i: { id: string }) => i.id === item.id)) {
+      items.unshift(item);
+      fileSave("archived-items.json", items);
+    }
+  }
+}
+
+export async function removeFromArchive(itemId: string) {
+  if (isVercel) {
+    let items = (await redisGet<CollectedItem[]>("archived-items")) || [];
+    items = items.filter((i: CollectedItem) => i.id !== itemId);
+    await redisSave("archived-items", items);
+  } else {
+    let items = fileGet<CollectedItem[]>("archived-items.json") || [];
+    items = items.filter((i: { id: string }) => i.id !== itemId);
+    fileSave("archived-items.json", items);
+  }
+}
+
+export async function getArchiveItems(): Promise<CollectedItem[]> {
+  if (isVercel) {
+    return (await redisGet<CollectedItem[]>("archived-items")) || [];
+  } else {
+    return fileGet<CollectedItem[]>("archived-items.json") || [];
+  }
+}
+
+export async function isArchived(itemId: string): Promise<boolean> {
+  const items = await getArchiveItems();
+  return items.some((i) => i.id === itemId);
+}
+

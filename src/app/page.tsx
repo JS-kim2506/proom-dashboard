@@ -23,6 +23,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [aiDigest, setAiDigest] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState<"daily" | "archive">("daily");
+  const [archivedItems, setArchivedItems] = useState<CollectedItem[]>([]);
 
   // --- 데이터 패칭 ---
   const fetchData = useCallback(async (date: string) => {
@@ -58,29 +60,51 @@ export default function HomePage() {
     }
   }, []);
 
-  useEffect(() => { 
-    setIsMounted(true); // 마운트 완료 신호 (Hydration 오류 방지)
-    
-    if (!selectedDate) {
-      const today = new Date().toISOString().split("T")[0];
-      setSelectedDate(today);
-      fetchData(today);
-    } else {
-      fetchData(selectedDate);
+  const fetchArchive = useCallback(async () => {
+    try {
+      const res = await fetch("/api/archive");
+      if (res.ok) {
+        const data = await res.json();
+        setArchivedItems(data);
+      }
+    } catch (e) {
+      console.error("Fetch Archive Error:", e);
     }
-  }, [fetchData, selectedDate]);
+  }, []);
+
+  useEffect(() => { 
+    setIsMounted(true);
+    
+    if (activeTab === "daily") {
+      if (!selectedDate) {
+        const today = new Date().toISOString().split("T")[0];
+        setSelectedDate(today);
+        fetchData(today);
+      } else {
+        fetchData(selectedDate);
+      }
+    } else {
+      fetchArchive();
+    }
+  }, [fetchData, fetchArchive, selectedDate, activeTab]);
 
   // --- 핸들러 ---
-  const handleCollect = async () => {
+  const handleCollect = async (date?: string) => {
     setIsCollecting(true);
+    const targetDate = date || (selectedDate === new Date().toISOString().split("T")[0] ? undefined : selectedDate);
+    
     try {
-      const res = await fetch("/api/collect", { method: "POST" });
+      const res = await fetch("/api/collect", { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: targetDate })
+      });
       const result = await res.json();
       if (result.success) {
-        setSelectedDate(new Date().toISOString().split("T")[0]); // 오늘 날짜로 이동
-        await fetchData(new Date().toISOString().split("T")[0]);
+        if (!targetDate) setSelectedDate(new Date().toISOString().split("T")[0]);
+        await fetchData(targetDate || new Date().toISOString().split("T")[0]);
         if (result.aiDigest) setAiDigest(result.aiDigest);
-        alert(`수집 완료: ${result.stats?.total || 0}건의 새로운 데이터를 가져왔습니다.`);
+        alert(`수집 완료: ${result.stats?.total || 0}건의 데이터를 가져왔습니다.`);
       } else {
         alert(`수집 실패: ${result.message}`);
       }
@@ -110,43 +134,69 @@ export default function HomePage() {
     return <div className="flex items-center justify-center h-96 text-gray-400 dark:text-slate-500">대시보드를 준비 중입니다...</div>;
   }
 
-  if (loading && items.length === 0) {
+  if (loading && items.length === 0 && activeTab === "daily") {
     return <div className="flex items-center justify-center h-96 text-gray-400 dark:text-slate-500">{getRandomLoadingMessage()}</div>;
   }
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-5">
-      {/* 헤더 및 날짜 선택기 */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">푸름님, 좋은 아침이에요:)</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <button 
-              onClick={() => changeDate(-1)}
-              className="text-gray-400 hover:text-indigo-600 transition-colors p-1"
-            >
-              ◀
-            </button>
-            <span className="text-xs font-bold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-3 py-1 rounded-full border border-indigo-100 dark:border-indigo-500/20">
-               📅 {selectedDate} {isLatest && "(오늘)"}
-            </span>
-            <button 
-              onClick={() => changeDate(1)}
-              disabled={isLatest}
-              className="text-gray-400 hover:text-indigo-600 transition-colors p-1 disabled:opacity-20"
-            >
-              ▶
-            </button>
-          </div>
-        </div>
+      {/* 탭 네비게이션 */}
+      <div className="flex border-b border-gray-100 dark:border-slate-800">
         <button
-          onClick={handleCollect}
-          disabled={isCollecting || !isLatest}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          onClick={() => setActiveTab("daily")}
+          className={`px-4 py-2 text-xs font-bold transition-all border-b-2 ${
+            activeTab === "daily" 
+              ? "border-indigo-600 text-indigo-600" 
+              : "border-transparent text-gray-400 hover:text-gray-600"
+          }`}
         >
-          {isCollecting ? "🐼 수집 중..." : "🔄 수집 새로고침"}
+          📅 데일리 모니터링
+        </button>
+        <button
+          onClick={() => setActiveTab("archive")}
+          className={`px-4 py-2 text-xs font-bold transition-all border-b-2 ${
+            activeTab === "archive" 
+              ? "border-indigo-600 text-indigo-600" 
+              : "border-transparent text-gray-400 hover:text-gray-600"
+          }`}
+        >
+          📂 내 저장소 (아카이브)
         </button>
       </div>
+
+      {activeTab === "daily" ? (
+        <>
+          {/* 헤더 및 날짜 선택기 */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">푸름님, 좋은 아침이에요:)</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <button 
+                  onClick={() => changeDate(-1)}
+                  className="text-gray-400 hover:text-indigo-600 transition-colors p-1"
+                >
+                  ◀
+                </button>
+                <span className="text-xs font-bold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-3 py-1 rounded-full border border-indigo-100 dark:border-indigo-500/20">
+                  📅 {selectedDate} {isLatest && "(오늘)"}
+                </span>
+                <button 
+                  onClick={() => changeDate(1)}
+                  disabled={isLatest}
+                  className="text-gray-400 hover:text-indigo-600 transition-colors p-1 disabled:opacity-20"
+                >
+                  ▶
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={() => handleCollect()}
+              disabled={isCollecting || !isLatest}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isCollecting ? "🐼 수집 중..." : "🔄 수집 새로고침"}
+            </button>
+          </div>
 
       <CollectStatus collectedAt={collectedAt} stats={stats} />
       <AlertBanner items={items} />
@@ -204,20 +254,72 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* 최신 소식 (시간순) */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-800 dark:text-slate-200 mb-3">📰 {selectedDate} 수집 뉴스</h2>
+        {/* 최신 소식 (시간순) */}
+        <div>
+          <h2 className="text-sm font-semibold text-gray-800 dark:text-slate-200 mb-3">📰 {selectedDate} 수집 뉴스</h2>
+          <div className="space-y-2">
+            {sortedItems.slice(0, 15).map((item) => (
+              <NewsCard 
+                key={item.id} 
+                item={item} 
+                initiallyArchived={archivedItems.some(ai => ai.id === item.id)}
+              />
+            ))}
+            {sortedItems.length === 0 && !loading && (
+              <div className="bg-white dark:bg-slate-900 border border-dashed border-gray-200 dark:border-slate-800 rounded-xl p-10 text-center">
+                <div className="text-4xl mb-3">🔍</div>
+                <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
+                  {selectedDate}에 수집된 데이터가 없습니다.
+                </p>
+                <button
+                  onClick={() => handleCollect(selectedDate)}
+                  disabled={isCollecting}
+                  className="inline-flex items-center gap-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-lg text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all border border-indigo-100 dark:border-indigo-500/20"
+                >
+                  {isCollecting ? "🐼 수집 중..." : `✨ ${selectedDate} 데이터 수집하기`}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </>
+    ) : (
+      /* 아카이브 탭 콘텐츠 */
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">나만의 아카이브 📂</h1>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">내가 선택하여 저장한 주요 소식들이 누적됩니다.</p>
+        </div>
+        
         <div className="space-y-2">
-          {sortedItems.slice(0, 15).map((item) => (
-            <NewsCard key={item.id} item={item} />
-          ))}
-          {sortedItems.length === 0 && !loading && (
-            <div className="bg-white dark:bg-slate-900 border border-dashed border-gray-200 dark:border-slate-800 rounded-xl p-10 text-center text-sm text-gray-400">
-               해당 날짜에 수집된 데이터가 없습니다. (수집을 실행했는지 확인해주세요)
+          {archivedItems.length > 0 ? (
+            archivedItems.map((item) => (
+              <NewsCard 
+                key={item.id} 
+                item={item} 
+                initiallyArchived={true}
+                onArchiveToggle={(id, archived) => {
+                  if (!archived) {
+                    setArchivedItems(prev => prev.filter(i => i.id !== id));
+                  }
+                }}
+              />
+            ))
+          ) : (
+            <div className="bg-white dark:bg-slate-900 border border-dashed border-gray-200 dark:border-slate-800 rounded-xl p-20 text-center">
+              <span className="text-4xl mb-4 block">📭</span>
+              <p className="text-sm text-gray-400">아직 저장된 기사가 없습니다.</p>
+              <button 
+                onClick={() => setActiveTab("daily")}
+                className="mt-4 text-xs font-bold text-indigo-600 hover:underline"
+              >
+                소식 보러가기
+              </button>
             </div>
           )}
         </div>
       </div>
+    )}
     </div>
   );
 }

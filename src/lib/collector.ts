@@ -33,11 +33,11 @@ async function safeCollect<T>(fn: () => Promise<T[]>, label: string): Promise<{ 
   }
 }
 
-export async function runCollection(): Promise<{ result: CollectResult; trends: TrendTopic[]; categoryNews: Record<string, TrendTopic[]> }> {
+export async function runCollection(targetDate?: string): Promise<{ result: CollectResult; trends: TrendTopic[]; categoryNews: Record<string, TrendTopic[]> }> {
   const keywords = getAllSearchKeywords();
   const groupKeywords = keywords.filter((k) => !k.memberName);
 
-  console.log(`[수집] 고도화된 병렬 수집 시작... (키워드 수: ${keywords.length})`);
+  console.log(`[수집] 고도화된 병렬 수집 시작... (대상 날짜: ${targetDate || "오늘"}, 키워드 수: ${keywords.length})`);
   const startTime = Date.now();
 
   // === 모든 수집을 병행으로 실행 ===
@@ -57,12 +57,12 @@ export async function runCollection(): Promise<{ result: CollectResult; trends: 
     safeCollect(() => collectTrendTopics(), "트렌드"),
     
     // Tier 2: Naver & Communities
-    Promise.all(groupKeywords.map(k => safeCollect(() => collectNaverNews(k.keyword, k.groupId, k.memberName), `NaverNews(${k.keyword})`))),
+    Promise.all(groupKeywords.map(k => safeCollect(() => collectNaverNews(k.keyword, k.groupId, k.memberName, targetDate), `NaverNews(${k.keyword})`))),
     Promise.all(groupKeywords.map(k => safeCollect(() => collectNaverBlog(k.keyword, k.groupId, k.memberName), `NaverBlog(${k.keyword})`))),
     Promise.all(groupKeywords.map(k => safeCollect(() => collectCommunity(k.keyword, k.groupId, k.memberName), `Comm(${k.keyword})`))),
     
     // Deep Scraping: DCInside & FMKorea
-    Promise.all(groupKeywords.map(k => safeCollect(() => collectDcInside(k.keyword, k.groupId, k.memberName), `DCInside(${k.keyword})`))),
+    Promise.all(groupKeywords.map(k => safeCollect(() => collectDcInside(k.keyword, k.groupId, k.memberName, targetDate), `DCInside(${k.keyword})`))),
     Promise.all(groupKeywords.map(k => safeCollect(() => collectFmKorea(k.keyword, k.groupId, k.memberName), `FMKorea(${k.keyword})`))),
   ]);
 
@@ -134,7 +134,7 @@ export async function runCollection(): Promise<{ result: CollectResult; trends: 
 
   return {
     result: {
-      date: getToday(),
+      date: targetDate || getToday(),
       collectedAt: new Date().toISOString(),
       items: itemsWithSentiment,
       stats,
