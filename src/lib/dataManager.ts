@@ -97,23 +97,91 @@ export async function saveCollectResult(
   trends: TrendTopic[],
   categoryNews?: Record<string, TrendTopic[]>
 ) {
+  // 기사를 publishedAt 기준으로 날짜별 분류
+  const itemsByDate: Record<string, CollectedItem[]> = {};
+  for (const item of result.items) {
+    const pubDate = item.publishedAt ? item.publishedAt.split("T")[0] : result.date;
+    if (!itemsByDate[pubDate]) itemsByDate[pubDate] = [];
+    itemsByDate[pubDate].push(item);
+  }
+
   if (isVercel) {
-    await Promise.all([
-      // 최신 데이터 갱신
+    const saves: Promise<void>[] = [
+      // 최신 데이터 갱신 (전체)
       redisSave("latest-result", result),
       redisSave("latest-trends", trends),
       categoryNews ? redisSave("latest-categories", categoryNews) : Promise.resolve(),
-      // 날짜별 아카이브 저장 (히스토리 조회용)
-      redisSave(`result-${result.date}`, result),
       redisSave(`trends-${result.date}`, trends),
       categoryNews ? redisSave(`categories-${result.date}`, categoryNews) : Promise.resolve(),
-      saveStatsRedis(result),
-    ]);
+    ];
+
+    // 날짜별로 기존 데이터에 병합하여 저장
+    for (const [date, items] of Object.entries(itemsByDate)) {
+      saves.push((async () => {
+        const existing = await redisGet<CollectResult>(`result-${date}`);
+        const existingItems = existing?.items || [];
+        // 중복 제거 (id 기준)
+        const existingIds = new Set(existingItems.map(i => i.id));
+        const newItems = items.filter(i => !existingIds.has(i.id));
+        const mergedItems = [...existingItems, ...newItems];
+
+        const byGroup: Record<string, number> = {};
+        const bySource: Record<string, number> = {};
+        for (const item of mergedItems) {
+          byGroup[item.groupId] = (byGroup[item.groupId] || 0) + 1;
+          bySource[item.source] = (bySource[item.source] || 0) + 1;
+        }
+
+        const dateResult: CollectResult = {
+          date,
+          collectedAt: existing?.collectedAt || result.collectedAt,
+          items: mergedItems,
+          stats: {
+            total: mergedItems.length,
+            byGroup,
+            bySource,
+            tierStatus: result.stats.tierStatus,
+          },
+        };
+        await redisSave(`result-${date}`, dateResult);
+        await saveStatsRedis(dateResult);
+      })());
+    }
+
+    await Promise.all(saves);
   } else {
-    fileSave(`${result.date}.json`, result);
+    // 로컬: 날짜별 분류 저장
+    for (const [date, items] of Object.entries(itemsByDate)) {
+      const existing = fileGet<CollectResult>(`${date}.json`);
+      const existingItems = existing?.items || [];
+      const existingIds = new Set(existingItems.map(i => i.id));
+      const newItems = items.filter(i => !existingIds.has(i.id));
+      const mergedItems = [...existingItems, ...newItems];
+
+      const byGroup: Record<string, number> = {};
+      const bySource: Record<string, number> = {};
+      for (const item of mergedItems) {
+        byGroup[item.groupId] = (byGroup[item.groupId] || 0) + 1;
+        bySource[item.source] = (bySource[item.source] || 0) + 1;
+      }
+
+      const dateResult: CollectResult = {
+        date,
+        collectedAt: existing?.collectedAt || result.collectedAt,
+        items: mergedItems,
+        stats: {
+          total: mergedItems.length,
+          byGroup,
+          bySource,
+          tierStatus: result.stats.tierStatus,
+        },
+      };
+      fileSave(`${date}.json`, dateResult);
+      updateStatsFile(dateResult);
+    }
+
     fileSave(`trends-${result.date}.json`, trends);
     if (categoryNews) fileSave(`categories-${result.date}.json`, categoryNews);
-    updateStatsFile(result);
     fileCleanup();
   }
 }
