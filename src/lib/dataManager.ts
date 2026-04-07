@@ -115,12 +115,13 @@ export async function saveCollectResult(
       categoryNews ? redisSave(`categories-${result.date}`, categoryNews) : Promise.resolve(),
     ];
 
-    // 날짜별로 기존 데이터에 병합하여 저장
+    await Promise.all(saves);
+
+    // 날짜별로 기존 데이터에 병합하여 순차 저장 (race condition 방지)
     for (const [date, items] of Object.entries(itemsByDate)) {
-      saves.push((async () => {
+      try {
         const existing = await redisGet<CollectResult>(`result-${date}`);
         const existingItems = existing?.items || [];
-        // 중복 제거 (id 기준)
         const existingIds = new Set(existingItems.map(i => i.id));
         const newItems = items.filter(i => !existingIds.has(i.id));
         const mergedItems = [...existingItems, ...newItems];
@@ -145,10 +146,10 @@ export async function saveCollectResult(
         };
         await redisSave(`result-${date}`, dateResult);
         await saveStatsRedis(dateResult);
-      })());
+      } catch (e) {
+        console.error(`[saveCollectResult] ${date} 저장 실패:`, e);
+      }
     }
-
-    await Promise.all(saves);
   } else {
     // 로컬: 날짜별 분류 저장
     for (const [date, items] of Object.entries(itemsByDate)) {
@@ -209,38 +210,73 @@ function updateStatsFile(result: CollectResult) {
 }
 
 export async function getResultByDate(date: string): Promise<CollectResult | null> {
-  let data = null;
-  if (isVercel) data = await redisGet<CollectResult>(`result-${date}`);
-  if (!data) data = fileGet<CollectResult>(`${date}.json`); // Fallback to file
-  return data;
+  try {
+    if (isVercel) {
+      const data = await redisGet<CollectResult>(`result-${date}`);
+      if (data) return data;
+    }
+  } catch (e) {
+    console.error(`[getResultByDate] Redis 조회 실패 (${date}):`, e);
+  }
+  try {
+    return fileGet<CollectResult>(`${date}.json`);
+  } catch { return null; }
 }
 
 export async function getTrendsByDate(date: string): Promise<TrendTopic[]> {
-  let data = null;
-  if (isVercel) data = await redisGet<TrendTopic[]>(`trends-${date}`);
-  if (!data) data = fileGet<TrendTopic[]>(`trends-${date}.json`); // Fallback to file
-  return data || [];
+  try {
+    if (isVercel) {
+      const data = await redisGet<TrendTopic[]>(`trends-${date}`);
+      if (data) return data;
+    }
+  } catch (e) {
+    console.error(`[getTrendsByDate] Redis 조회 실패 (${date}):`, e);
+  }
+  try {
+    return fileGet<TrendTopic[]>(`trends-${date}.json`) || [];
+  } catch { return []; }
 }
 
 export async function getLatestResult(): Promise<CollectResult | null> {
-  let data = null;
-  if (isVercel) data = await redisGet<CollectResult>("latest-result");
-  if (!data) data = fileGetLatest<CollectResult>(""); // Fallback to file
-  return data;
+  try {
+    if (isVercel) {
+      const data = await redisGet<CollectResult>("latest-result");
+      if (data) return data;
+    }
+  } catch (e) {
+    console.error("[getLatestResult] Redis 조회 실패:", e);
+  }
+  try {
+    return fileGetLatest<CollectResult>("");
+  } catch { return null; }
 }
 
 export async function getLatestTrends(): Promise<TrendTopic[]> {
-  let data = null;
-  if (isVercel) data = await redisGet<TrendTopic[]>("latest-trends");
-  if (!data) data = fileGetLatest<TrendTopic[]>("trends-"); // Fallback to file
-  return data || [];
+  try {
+    if (isVercel) {
+      const data = await redisGet<TrendTopic[]>("latest-trends");
+      if (data) return data;
+    }
+  } catch (e) {
+    console.error("[getLatestTrends] Redis 조회 실패:", e);
+  }
+  try {
+    return fileGetLatest<TrendTopic[]>("trends-") || [];
+  } catch { return []; }
 }
 
 export async function getLatestCategoryNews(): Promise<Record<string, TrendTopic[]>> {
-  let data = null;
-  if (isVercel) data = await redisGet<Record<string, TrendTopic[]>>("latest-categories");
-  if (!data) data = fileGetLatest<Record<string, TrendTopic[]>>("categories-"); // Fallback to file
-  return data || {};
+  try {
+    if (isVercel) {
+      const data = await redisGet<Record<string, TrendTopic[]>>("latest-categories");
+      if (data) return data;
+    }
+  } catch (e) {
+    console.error("[getLatestCategoryNews] Redis 조회 실패:", e);
+  }
+  try {
+    return fileGetLatest<Record<string, TrendTopic[]>>("categories-") || {};
+  } catch { return {}; }
 }
 
 export async function getStats(): Promise<DailyStats[]> {
