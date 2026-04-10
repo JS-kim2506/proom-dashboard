@@ -73,6 +73,7 @@ const TABS: { id: NewsCategory; label: string; icon: string }[] = [
   { id: "business", label: "경제", icon: "💰" },
   { id: "world", label: "세계", icon: "🌍" },
   { id: "sports", label: "스포츠", icon: "⚽" },
+  { id: "brandpr", label: "브랜드 PR", icon: "🏷️" },
 ];
 
 function timeAgo(dateStr: string): string {

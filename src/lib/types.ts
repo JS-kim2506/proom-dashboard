@@ -53,7 +53,7 @@ export interface TrendTopic {
   category?: string;
 }
 
-export type NewsCategory = "politics" | "society" | "business" | "world" | "sports";
+export type NewsCategory = "politics" | "society" | "business" | "world" | "sports" | "brandpr";
 
 export const NEWS_CATEGORIES: { id: NewsCategory; label: string; icon: string; googleTopic: string }[] = [
   { id: "politics", label: "정치", icon: "🏛️", googleTopic: "NATION" },
@@ -61,4 +61,5 @@ export const NEWS_CATEGORIES: { id: NewsCategory; label: string; icon: string; g
   { id: "business", label: "경제", icon: "💰", googleTopic: "BUSINESS" },
   { id: "world", label: "세계", icon: "🌍", googleTopic: "WORLD" },
   { id: "sports", label: "스포츠", icon: "⚽", googleTopic: "SPORTS" },
+  { id: "brandpr", label: "브랜드 PR", icon: "🏷️", googleTopic: "BUSINESS" },
 ];

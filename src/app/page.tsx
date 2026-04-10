@@ -12,6 +12,12 @@ import NewsCard from "@/components/NewsCard";
 import { FubaoEmptyState, getRandomLoadingMessage } from "@/components/FubaoEasterEgg";
 import Link from "next/link";
 
+/** 브라우저 로컬 시간 기준 오늘 날짜 (YYYY-MM-DD) */
+function getLocalToday(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 export default function HomePage() {
   // --- 상태 관리 ---
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -30,7 +36,7 @@ export default function HomePage() {
   const fetchData = useCallback(async (date: string) => {
     setLoading(true);
     try {
-      const isToday = date === new Date().toISOString().split("T")[0];
+      const isToday = date === getLocalToday();
       const resultUrl = isToday ? "/api/data?type=latest" : `/api/data?type=latest&date=${date}`;
       
       const [latestRes, statsRes] = await Promise.all([
@@ -77,7 +83,7 @@ export default function HomePage() {
     
     if (activeTab === "daily") {
       if (!selectedDate) {
-        const today = new Date().toISOString().split("T")[0];
+        const today = getLocalToday();
         setSelectedDate(today);
         fetchData(today);
       } else {
@@ -91,7 +97,7 @@ export default function HomePage() {
   // --- 핸들러 ---
   const handleCollect = async (date?: string) => {
     setIsCollecting(true);
-    const targetDate = date || (selectedDate === new Date().toISOString().split("T")[0] ? undefined : selectedDate);
+    const targetDate = date || (selectedDate === getLocalToday() ? undefined : selectedDate);
     
     try {
       const res = await fetch("/api/collect", { 
@@ -101,8 +107,8 @@ export default function HomePage() {
       });
       const result = await res.json();
       if (result.success) {
-        if (!targetDate) setSelectedDate(new Date().toISOString().split("T")[0]);
-        await fetchData(targetDate || new Date().toISOString().split("T")[0]);
+        if (!targetDate) setSelectedDate(getLocalToday());
+        await fetchData(targetDate || getLocalToday());
         if (result.aiDigest) setAiDigest(result.aiDigest);
         alert(`수집 완료: ${result.stats?.total || 0}건의 데이터를 가져왔습니다.`);
       } else {
@@ -122,7 +128,7 @@ export default function HomePage() {
     setSelectedDate(current.toISOString().split("T")[0]);
   };
 
-  const isLatest = selectedDate === new Date().toISOString().split("T")[0];
+  const isLatest = selectedDate === getLocalToday();
 
   const sortedItems = items
     .filter((item) => item && item.publishedAt) // 유효성 검사 추가

@@ -96,6 +96,28 @@ export default function Sidebar() {
               {item.label}
             </Link>
           ))}
+
+          <div className="text-[10px] font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-3 mt-4 mb-2">커뮤니티 모니터링</div>
+          <a
+            href="https://issuelink.co.kr/community/listview/all/120/time/_self/blank"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setCollapsed(false)}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-white transition-colors"
+          >
+            <span className="text-base">💬</span>
+            이슈링크
+          </a>
+          <a
+            href="https://www.bigkinds.or.kr/v2/news/search.do"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setCollapsed(false)}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-white transition-colors"
+          >
+            <span className="text-base">📰</span>
+            빅카인즈
+          </a>
         </nav>
 
         {/* 하단 */}

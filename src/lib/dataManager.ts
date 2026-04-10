@@ -3,6 +3,21 @@ import type { CollectResult, DailyStats, TrendTopic, CollectedItem } from "./typ
 // Vercel 배포 시 Upstash Redis 사용, 로컬에서는 파일 시스템 사용
 const isVercel = process.env.VERCEL === "1" || !!process.env.KV_REST_API_URL;
 
+/** KST 기준 오늘 날짜 (YYYY-MM-DD) */
+function getTodayKST(): string {
+  const now = new Date();
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().split("T")[0];
+}
+
+/** publishedAt ISO 문자열 → KST 기준 날짜 (YYYY-MM-DD) */
+function toKSTDate(isoStr: string): string {
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return getTodayKST();
+  const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().split("T")[0];
+}
+
 // ========== Redis 기반 (Vercel) ==========
 async function getRedis() {
   const url = process.env.KV_REST_API_URL;
@@ -99,10 +114,10 @@ export async function saveCollectResult(
   trends: TrendTopic[],
   categoryNews?: Record<string, TrendTopic[]>
 ) {
-  // 기사를 publishedAt 기준으로 날짜별 분류
+  // 기사를 publishedAt 기준으로 KST 날짜별 분류
   const itemsByDate: Record<string, CollectedItem[]> = {};
   for (const item of result.items) {
-    const pubDate = item.publishedAt ? item.publishedAt.split("T")[0] : result.date;
+    const pubDate = item.publishedAt ? toKSTDate(item.publishedAt) : result.date;
     if (!itemsByDate[pubDate]) itemsByDate[pubDate] = [];
     itemsByDate[pubDate].push(item);
   }
@@ -240,6 +255,16 @@ export async function getTrendsByDate(date: string): Promise<TrendTopic[]> {
 }
 
 export async function getLatestResult(): Promise<CollectResult | null> {
+  // KST 기준 오늘 날짜의 데이터를 우선 반환
+  const today = getTodayKST();
+  try {
+    const todayResult = await getResultByDate(today);
+    if (todayResult && todayResult.items.length > 0) return todayResult;
+  } catch (e) {
+    console.error("[getLatestResult] 오늘 데이터 조회 실패:", e);
+  }
+
+  // 오늘 데이터 없으면 latest-result fallback
   try {
     if (isVercel) {
       const data = await redisGet<CollectResult>("latest-result");

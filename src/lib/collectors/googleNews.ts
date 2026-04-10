@@ -9,19 +9,27 @@ function hashId(prefix: string, str: string): string {
   return `${prefix}-${crypto.createHash("md5").update(str).digest("hex").slice(0, 16)}`;
 }
 
-/** 날짜 문자열 파싱 및 미래 날짜 보정 (2025년 기사가 2026년으로 오기되는 문제 해결) */
+/** 날짜 문자열 파싱 및 KST 기준 날짜 보정 */
 function parsePublishedAt(dateStr?: string): string {
   if (!dateStr) return new Date().toISOString();
-  
+
   const parsed = new Date(dateStr);
+  if (isNaN(parsed.getTime())) return new Date().toISOString();
+
   const now = new Date();
-  
-  // 파칭된 날짜가 현재보다 미래라면(오차 범위 제외), 작년 기사로 간주
-  // Google News RSS에서 연도가 생략된 "1월 29일" 같은 표현이 들어올 때의 대응
-  if (parsed > now) {
+
+  // 미래 날짜 보정: 1시간 이상 미래면 작년으로 간주
+  const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+  if (parsed > oneHourLater) {
     parsed.setFullYear(parsed.getFullYear() - 1);
   }
-  
+
+  // 너무 오래된 기사 필터 (90일 이전이면 수집 시점으로)
+  const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+  if (parsed < ninetyDaysAgo) {
+    return now.toISOString();
+  }
+
   return parsed.toISOString();
 }
 
@@ -104,12 +112,20 @@ export async function collectTrendTopics(): Promise<TrendTopic[]> {
 export async function collectCategoryNews(): Promise<Record<string, TrendTopic[]>> {
   const result: Record<string, TrendTopic[]> = {};
 
+  const BRAND_PR_KEYWORDS = [
+    "브랜드 팝업", "브랜드 앰버서더", "새 모델 발탁",
+    "광고 모델", "보도자료", "브랜드 협업", "컬래버레이션",
+    "팝업스토어", "신제품 출시", "브랜드 캠페인",
+  ];
+  const brandPrQuery = encodeURIComponent(BRAND_PR_KEYWORDS.slice(0, 4).join(" OR "));
+
   const categoryUrls: { id: string; url: string }[] = [
     { id: "politics", url: "https://news.google.com/rss/headlines/section/topic/NATION?hl=ko&gl=KR&ceid=KR:ko" },
     { id: "society", url: "https://news.google.com/rss/headlines/section/topic/HEALTH?hl=ko&gl=KR&ceid=KR:ko" },
     { id: "business", url: "https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=ko&gl=KR&ceid=KR:ko" },
     { id: "world", url: "https://news.google.com/rss/headlines/section/topic/WORLD?hl=ko&gl=KR&ceid=KR:ko" },
     { id: "sports", url: "https://news.google.com/rss/headlines/section/topic/SPORTS?hl=ko&gl=KR&ceid=KR:ko" },
+    { id: "brandpr", url: `https://news.google.com/rss/search?q=${brandPrQuery}&hl=ko&gl=KR&ceid=KR:ko` },
   ];
 
   const fetches = categoryUrls.map(async ({ id, url }) => {
