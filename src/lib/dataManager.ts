@@ -114,9 +114,11 @@ export async function saveCollectResult(
   trends: TrendTopic[],
   categoryNews?: Record<string, TrendTopic[]>
 ) {
-  // 기사를 publishedAt 기준으로 KST 날짜별 분류
+  // 기사를 publishedAt 기준으로 KST 날짜별 분류 (매우 중요: 수집 시점 분리)
   const itemsByDate: Record<string, CollectedItem[]> = {};
   for (const item of result.items) {
+    // publishedAt이 없으면 현재 수집 대상 날짜(result.date)를 기준으로 하되, 
+    // 기본적으로는 기사 자체의 발행일을 최우선함
     const pubDate = item.publishedAt ? toKSTDate(item.publishedAt) : result.date;
     if (!itemsByDate[pubDate]) itemsByDate[pubDate] = [];
     itemsByDate[pubDate].push(item);
@@ -124,8 +126,7 @@ export async function saveCollectResult(
 
   if (isVercel) {
     const saves: Promise<void>[] = [
-      // 최신 데이터 갱신 (전체)
-      redisSave("latest-result", result),
+      // 트렌드 및 카테고리 뉴스는 '수집 시점' 기준으로 저장
       redisSave("latest-trends", trends),
       categoryNews ? redisSave("latest-categories", categoryNews) : Promise.resolve(),
       redisSave(`trends-${result.date}`, trends),
@@ -134,15 +135,20 @@ export async function saveCollectResult(
 
     await Promise.all(saves);
 
-    // 날짜별로 기존 데이터에 병합하여 순차 저장 (race condition 방지)
+    // 날짜별로 실제 발행일 버킷에 병합 저장
     for (const [date, items] of Object.entries(itemsByDate)) {
       try {
         const existing = await redisGet<CollectResult>(`result-${date}`);
         const existingItems = existing?.items || [];
         const existingIds = new Set(existingItems.map(i => i.id));
+        
+        // 중복 제외하고 새로운 기사만 추가
         const newItems = items.filter(i => !existingIds.has(i.id));
+        if (newItems.length === 0) continue;
+
         const mergedItems = [...existingItems, ...newItems];
 
+        // 해당 날짜 버킷의 통계 재계산
         const byGroup: Record<string, number> = {};
         const bySource: Record<string, number> = {};
         for (const item of mergedItems) {
@@ -152,7 +158,7 @@ export async function saveCollectResult(
 
         const dateResult: CollectResult = {
           date,
-          collectedAt: existing?.collectedAt || result.collectedAt,
+          collectedAt: new Date().toISOString(), // 마지막 업데이트 시각
           items: mergedItems,
           stats: {
             total: mergedItems.length,
@@ -161,19 +167,28 @@ export async function saveCollectResult(
             tierStatus: result.stats.tierStatus,
           },
         };
+
+        // 전용 날짜 버킷에 저장 (1월 기사는 result-2026-01-14 방으로 감)
         await redisSave(`result-${date}`, dateResult);
         await saveStatsRedis(dateResult);
+
+        // 만약 저장하는 날짜가 오늘이라면 최신 결과로도 저장 (UI 편의성)
+        if (date === result.date) {
+          await redisSave("latest-result", dateResult);
+        }
       } catch (e) {
         console.error(`[saveCollectResult] ${date} 저장 실패:`, e);
       }
     }
   } else {
-    // 로컬: 날짜별 분류 저장
+    // 로컬 환경에서도 동일한 로직 적용
     for (const [date, items] of Object.entries(itemsByDate)) {
       const existing = fileGet<CollectResult>(`${date}.json`);
       const existingItems = existing?.items || [];
       const existingIds = new Set(existingItems.map(i => i.id));
       const newItems = items.filter(i => !existingIds.has(i.id));
+      if (newItems.length === 0) continue;
+
       const mergedItems = [...existingItems, ...newItems];
 
       const byGroup: Record<string, number> = {};
@@ -185,7 +200,7 @@ export async function saveCollectResult(
 
       const dateResult: CollectResult = {
         date,
-        collectedAt: existing?.collectedAt || result.collectedAt,
+        collectedAt: new Date().toISOString(),
         items: mergedItems,
         stats: {
           total: mergedItems.length,
@@ -194,7 +209,11 @@ export async function saveCollectResult(
           tierStatus: result.stats.tierStatus,
         },
       };
+
       fileSave(`${date}.json`, dateResult);
+      if (date === result.date) {
+        fileSave("latest-result.json", dateResult); // 로컬 최신용
+      }
       updateStatsFile(dateResult);
     }
 
@@ -211,7 +230,7 @@ async function saveStatsRedis(result: CollectResult) {
   if (idx >= 0) stats[idx] = dailyStat;
   else stats.push(dailyStat);
   
-  // 90일(3개월)치 보관
+  // 90일(3개월)치 보관 (1월 기사 업데이트 시 1월 통계도 갱신되어야 함)
   await redisSave("daily-stats", stats.sort((a,b) => a.date.localeCompare(b.date)).slice(-90));
 }
 
@@ -228,40 +247,14 @@ function updateStatsFile(result: CollectResult) {
 
 export async function getResultByDate(date: string): Promise<CollectResult | null> {
   try {
-    let data: CollectResult | null = null;
     if (isVercel) {
-      data = await redisGet<CollectResult>(`result-${date}`);
+      const data = await redisGet<CollectResult>(`result-${date}`);
+      if (data) return data;
     } else {
-      data = fileGet<CollectResult>(`${date}.json`);
-    }
-
-    if (data) {
-      // 오염된 데이터 방어: 수집된 날짜(date)와 실제 발행일이 다른 항목 필터링
-      // 단, 수집 시점 차이로 인해 ±1일 정도의 차이는 허용할 수 있으나 
-      // 현재 사용자가 겪는 문제는 수개월 전 기사가 노출되는 것이므로 
-      // 발행일이 해당 날짜에 부합하지 않으면 제외합니다.
-      const filteredItems = data.items.filter(item => {
-        if (!item.publishedAt) return false;
-        const pubDate = toKSTDate(item.publishedAt);
-        // 발행일이 조회 날짜와 일치하거나, 수집 시차를 고려해 30일 이내인 것만 보임
-        // (1월 기사가 4월에 보이는 것을 막는 핵심 로직)
-        return pubDate === date;
-      });
-
-      if (filteredItems.length !== data.items.length) {
-        return {
-          ...data,
-          items: filteredItems,
-          stats: {
-            ...data.stats,
-            total: filteredItems.length
-          }
-        };
-      }
-      return data;
+      return fileGet<CollectResult>(`${date}.json`);
     }
   } catch (e) {
-    console.error(`[getResultByDate] 조회 및 필터링 실패 (${date}):`, e);
+    console.error(`[getResultByDate] 조회 실패 (${date}):`, e);
   }
   return null;
 }
@@ -281,37 +274,18 @@ export async function getTrendsByDate(date: string): Promise<TrendTopic[]> {
 }
 
 export async function getLatestResult(): Promise<CollectResult | null> {
-  // KST 기준 오늘 날짜의 데이터를 우선 반환
+  // 오늘 날짜 버킷을 먼저 확인 (가장 정확)
   const today = getTodayKST();
-  try {
-    const todayResult = await getResultByDate(today);
-    if (todayResult && todayResult.items.length > 0) return todayResult;
-  } catch (e) {
-    console.error("[getLatestResult] 오늘 데이터 조회 실패:", e);
-  }
+  const todayResult = await getResultByDate(today);
+  if (todayResult && todayResult.items.length > 0) return todayResult;
 
-  // 오늘 데이터 없으면 latest-result fallback (여기서도 필터링 필요)
+  // 오늘 기사가 하나도 없으면 전용 'latest-result' 키 확인
   try {
-    let data: CollectResult | null = null;
     if (isVercel) {
-      data = await redisGet<CollectResult>("latest-result");
+      const data = await redisGet<CollectResult>("latest-result");
+      if (data) return data;
     } else {
-      data = fileGetLatest<CollectResult>("");
-    }
-
-    if (data) {
-      // 최신 결과에서도 30일 이상 지난 기사는 노출하지 않음
-      const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const filteredItems = data.items.filter(item => {
-        if (!item.publishedAt) return false;
-        return new Date(item.publishedAt) >= cutoff;
-      });
-
-      return {
-        ...data,
-        items: filteredItems,
-        stats: { ...data.stats, total: filteredItems.length }
-      };
+      return fileGet<CollectResult>("latest-result.json");
     }
   } catch (e) {
     console.error("[getLatestResult] Fallback 조회 실패:", e);
