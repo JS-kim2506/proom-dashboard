@@ -12,10 +12,11 @@ import NewsCard from "@/components/NewsCard";
 import { FubaoEmptyState, getRandomLoadingMessage } from "@/components/FubaoEasterEgg";
 import Link from "next/link";
 
-/** 브라우저 로컬 시간 기준 오늘 날짜 (YYYY-MM-DD) */
-function getLocalToday(): string {
+/** KST 기준 오늘 날짜 (YYYY-MM-DD) */
+function getKSTToday(): string {
   const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().split("T")[0];
 }
 
 export default function HomePage() {
@@ -36,12 +37,12 @@ export default function HomePage() {
   const fetchData = useCallback(async (date: string) => {
     setLoading(true);
     try {
-      const isToday = date === getLocalToday();
-      const resultUrl = isToday ? "/api/data?type=latest" : `/api/data?type=latest&date=${date}`;
+      // 명시적으로 지정된 날짜의 결과만 가져오도록 쿼리 수정 & 캐시 방지 추가
+      const resultUrl = `/api/data?type=latest&date=${date}&_t=${Date.now()}`;
       
       const [latestRes, statsRes] = await Promise.all([
-        fetch(resultUrl).catch(() => null),
-        fetch("/api/data?type=stats").catch(() => null),
+        fetch(resultUrl, { cache: 'no-store' }).catch(() => null),
+        fetch(`/api/data?type=stats&_t=${Date.now()}`, { cache: 'no-store' }).catch(() => null),
       ]);
       
       let latest: any = { items: [], stats: null, collectedAt: null, aiDigest: null };
@@ -83,7 +84,7 @@ export default function HomePage() {
     
     if (activeTab === "daily") {
       if (!selectedDate) {
-        const today = getLocalToday();
+        const today = getKSTToday();
         setSelectedDate(today);
         fetchData(today);
       } else {
