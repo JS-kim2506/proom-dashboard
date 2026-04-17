@@ -48,11 +48,11 @@ export async function GET(request: Request) {
     const targetDate = searchParams.get("date") || toKSTDate(new Date().toISOString());
 
     if (mode === "deep-clean") {
+      // ... (기존 deep-clean 로직 유지)
       logs.push(`[Deep Clean] ${targetDate} 데이터 완전 삭제 및 재수집 시작`);
       await redis.del(`result-${targetDate}`);
       await redis.del("latest-result");
       
-      // 재수집 트리거 (서버 사이드에서 직접 호출)
       const { runCollection } = await import("@/lib/collector");
       const { saveCollectResult } = await import("@/lib/dataManager");
       
@@ -60,6 +60,52 @@ export async function GET(request: Request) {
       await saveCollectResult(result, trends, categoryNews);
       
       logs.push(`${targetDate} 데이터 재수집 완료 (총 ${result.stats.total}건)`);
+      return NextResponse.json({ success: true, logs });
+    }
+
+    if (mode === "history-heal") {
+      logs.push("=== 전역 역사 바로 세우기(History Heal) 시작 ===");
+      let deletedCount = 0;
+
+      for (const key of dateKeys) {
+        if (key === "latest-result") continue;
+        const data = await redis.get<CollectResult>(key);
+        if (!data || !data.items) continue;
+
+        const originalCount = data.items.length;
+        // 버그 시그니처: 발행일과 수집일이 거의 동일하면 '가짜 날짜'로 간주하여 삭제
+        const cleanedItems = data.items.filter(item => {
+          if (!item.publishedAt || !item.collectedAt) return true;
+          const pub = new Date(item.publishedAt).getTime();
+          const coll = new Date(item.collectedAt).getTime();
+          const diff = Math.abs(pub - coll);
+          // 5초 이내면 실패한 폴백 데이터로 간주
+          return diff > 5000;
+        });
+
+        if (cleanedItems.length !== originalCount) {
+          const removed = originalCount - cleanedItems.length;
+          deletedCount += removed;
+
+          // 통계 재계산
+          const byGroup: Record<string, number> = {};
+          const bySource: Record<string, number> = {};
+          for (const item of cleanedItems) {
+            byGroup[item.groupId] = (byGroup[item.groupId] || 0) + 1;
+            bySource[item.source] = (bySource[item.source] || 0) + 1;
+          }
+
+          const updatedResult: CollectResult = {
+            ...data,
+            items: cleanedItems,
+            stats: { ...data.stats, total: cleanedItems.length, byGroup, bySource }
+          };
+          await redis.set(key, JSON.stringify(updatedResult));
+        }
+      }
+
+      logs.push(`전체 DB에서 ${deletedCount}개의 오염된 기사를 삭제했습니다.`);
+      logs.push("이제 깨끗해진 DB에 30일치 데이터를 올바르게 채워넣는 Backfill을 권장합니다.");
       return NextResponse.json({ success: true, logs });
     }
 
