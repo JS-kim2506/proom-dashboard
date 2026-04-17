@@ -9,12 +9,15 @@ function hashId(prefix: string, str: string): string {
   return `${prefix}-${crypto.createHash("md5").update(str).digest("hex").slice(0, 16)}`;
 }
 
-/** 날짜 문자열 파싱 및 KST 기준 날짜 보정 */
-function parsePublishedAt(dateStr?: string): string {
-  if (!dateStr) return new Date().toISOString();
+/** 기사 연령 필터링 기준 (일) */
+const MAX_ARTICLE_AGE_DAYS = 30;
+
+/** 날짜 문자열 파싱 — 파싱 실패 시 null 반환 (현재 시각으로 대체하지 않음) */
+function parseGoogleDate(dateStr?: string): string | null {
+  if (!dateStr) return null;
 
   const parsed = new Date(dateStr);
-  if (isNaN(parsed.getTime())) return new Date().toISOString();
+  if (isNaN(parsed.getTime())) return null;
 
   const now = new Date();
 
@@ -24,13 +27,15 @@ function parsePublishedAt(dateStr?: string): string {
     parsed.setFullYear(parsed.getFullYear() - 1);
   }
 
-  // 너무 오래된 기사 필터 (90일 이전이면 수집 시점으로)
-  const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-  if (parsed < ninetyDaysAgo) {
-    return now.toISOString();
-  }
-
   return parsed.toISOString();
+}
+
+/** 기사가 수집 대상 기간 내인지 확인 */
+function isWithinCollectionRange(publishedAt: string | null): boolean {
+  if (!publishedAt) return false;
+  const published = new Date(publishedAt);
+  const cutoff = new Date(Date.now() - MAX_ARTICLE_AGE_DAYS * 24 * 60 * 60 * 1000);
+  return published >= cutoff;
 }
 
 const parser = new Parser({
@@ -59,6 +64,10 @@ export async function collectGoogleNews(
 
       if (!isRelevantArticle(title, snippet, groupId, memberName)) continue;
 
+      const publishedAt = parseGoogleDate(entry.pubDate);
+      // 발행일 파싱 실패 또는 수집 대상 기간 초과 시 제외
+      if (!isWithinCollectionRange(publishedAt)) continue;
+
       const sourceName = extractSource(title);
       const sourceType = classifySource(sourceName);
 
@@ -72,7 +81,7 @@ export async function collectGoogleNews(
         groupId,
         memberName,
         keyword,
-        publishedAt: parsePublishedAt(entry.pubDate),
+        publishedAt: publishedAt!,
         collectedAt: new Date().toISOString(),
         alertLevel: detectAlertLevel(title),
         snippet,
@@ -93,11 +102,12 @@ export async function collectTrendTopics(): Promise<TrendTopic[]> {
     const feed = await parser.parseURL(url);
 
     for (const entry of feed.items.slice(0, 20)) {
+      const publishedAt = parseGoogleDate(entry.pubDate);
       topics.push({
         title: entry.title || "",
         link: entry.link || "",
         source: "Google News",
-        publishedAt: parsePublishedAt(entry.pubDate),
+        publishedAt: publishedAt || new Date().toISOString(),
         snippet: entry.contentSnippet?.slice(0, 300),
       });
     }
@@ -137,11 +147,12 @@ export async function collectCategoryNews(): Promise<Record<string, TrendTopic[]
         const title = entry.title || "";
         const snippet = entry.contentSnippet?.slice(0, 500) || "";
 
+        const publishedAt = parseGoogleDate(entry.pubDate);
         topics.push({
           title,
           link: entry.link || "",
           source: extractSource(entry.title || ""),
-          publishedAt: parsePublishedAt(entry.pubDate),
+          publishedAt: publishedAt || new Date().toISOString(),
           snippet,
           summary: generateSummary(title, snippet),
           category: id,

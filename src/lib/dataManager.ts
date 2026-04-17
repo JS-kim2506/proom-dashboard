@@ -325,7 +325,12 @@ export async function getStats(): Promise<DailyStats[]> {
     stats = fileGet<DailyStats[]>("stats.json") || [];
   }
   
-  return stats;
+  // 합리적인 범위(최근 90일) 밖의 비정상 날짜 제거
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - 90);
+  const cutoffStr = cutoffDate.toISOString().split("T")[0];
+  
+  return stats.filter(s => s.date >= cutoffStr);
 }
 
 export async function saveToArchive(item: CollectedItem) {

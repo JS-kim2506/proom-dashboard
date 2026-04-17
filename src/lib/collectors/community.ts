@@ -54,6 +54,16 @@ export async function collectCommunity(
       else if (link.includes("dcinside")) sourceName = "디시인사이드";
       else if (link.includes("fmkorea")) sourceName = "에펨코리아";
 
+      // Google 검색 결과에서 날짜 추출 시도
+      const dateText = $(el).find(".LEwnzc .Yo9ABd, .f, span.MUxGbd").first().text().trim();
+      let publishedAt = new Date().toISOString();
+      if (dateText) {
+        const parsed = new Date(dateText);
+        if (!isNaN(parsed.getTime())) {
+          publishedAt = parsed.toISOString();
+        }
+      }
+
       items.push({
         id: hashId("comm", link || title),
         title,
@@ -64,7 +74,7 @@ export async function collectCommunity(
         groupId,
         memberName,
         keyword,
-        publishedAt: new Date().toISOString(),
+        publishedAt,
         collectedAt: new Date().toISOString(),
         alertLevel: detectAlertLevel(title + " " + snippet),
         snippet: snippet.slice(0, 200),

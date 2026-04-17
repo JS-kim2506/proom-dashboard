@@ -30,9 +30,21 @@ const ALERT_STYLES: Record<string, string> = {
   info: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
 };
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, collectedAt?: string): string {
   const published = new Date(dateStr);
   if (isNaN(published.getTime())) return "날짜 미상";
+
+  // publishedAt과 collectedAt이 5초 이내로 동일하면 날짜 파싱 실패 케이스
+  if (collectedAt) {
+    const collected = new Date(collectedAt);
+    if (!isNaN(collected.getTime()) && Math.abs(published.getTime() - collected.getTime()) < 5000) {
+      return published.toLocaleDateString("ko-KR", {
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+      });
+    }
+  }
 
   const now = new Date();
   const diff = now.getTime() - published.getTime();
@@ -136,7 +148,7 @@ export default function NewsCard({ item, initiallyArchived = false, onArchiveTog
       {/* 우측: 시간 및 아카이브 버튼 */}
       <div className="flex flex-col items-end gap-2 flex-shrink-0 pt-0.5">
         <div className="text-[11px] text-gray-400 dark:text-slate-500 whitespace-nowrap">
-          {timeAgo(item?.publishedAt ?? "")}
+          {timeAgo(item?.publishedAt ?? "", item?.collectedAt)}
         </div>
         <button
           onClick={toggleArchive}

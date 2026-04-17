@@ -15,20 +15,25 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** 네이버 검색 결과의 날짜 문자열(예: "1시간 전", "2025.01.24.")을 ISO 형식으로 변환 */
-function parseNaverDate(dateStr: string): string {
+/** 네이버 검색 결과의 날짜 문자열(예: "1시간 전", "2025.01.24.")을 ISO 형식으로 변환. 파싱 실패 시 null 반환 */
+function parseNaverDate(dateStr: string): string | null {
+  if (!dateStr || !dateStr.trim()) return null;
+
   const now = new Date();
   const s = dateStr.trim();
 
   try {
     if (s.includes("분 전")) {
       const mins = parseInt(s.replace("분 전", ""));
+      if (isNaN(mins)) return null;
       now.setMinutes(now.getMinutes() - mins);
     } else if (s.includes("시간 전")) {
       const hours = parseInt(s.replace("시간 전", ""));
+      if (isNaN(hours)) return null;
       now.setHours(now.getHours() - hours);
     } else if (s.includes("일 전")) {
       const days = parseInt(s.replace("일 전", ""));
+      if (isNaN(days)) return null;
       now.setDate(now.getDate() - days);
     } else if (/\d{4}\.\d{2}\.\d{2}\./.test(s)) {
       const parts = s.split(".").map(p => parseInt(p));
@@ -37,14 +42,12 @@ function parseNaverDate(dateStr: string): string {
       const parts = s.split(".").map(p => parseInt(p));
       const year = parts[0] < 100 ? 2000 + parts[0] : parts[0];
       return new Date(year, parts[1] - 1, parts[2]).toISOString();
+    } else {
+      return null;
     }
   } catch (e) {
     console.warn("[Date Parse Error] Naver:", dateStr, e);
-  }
-
-  // 미래 날짜 보정 (현재보다 미래면 1년 전으로)
-  if (now > new Date()) {
-    // 사실 위 로직에서 now는 항상 현재 또는 과거이므로 별도 처리 불필요
+    return null;
   }
 
   return now.toISOString();
@@ -100,7 +103,8 @@ export async function collectNaverNews(
       if (!title || !isRelevantArticle(title, snippet, groupId, memberName)) return;
 
       const dateStr = $(el).find(".info_group .info").last().text().trim();
-      const publishedAt = targetDate ? new Date(targetDate).toISOString() : parseNaverDate(dateStr);
+      const parsedDate = targetDate ? new Date(targetDate).toISOString() : parseNaverDate(dateStr);
+      const publishedAt = parsedDate || new Date().toISOString();
 
       items.push({
         id: hashId("naver", link || title),
@@ -148,7 +152,7 @@ export async function collectNaverBlog(
 
       const dateStr = $(el).closest(".api_ani_send").find(".sub_time").text().trim() 
                       || $(el).parent().find(".sub_time").text().trim();
-      const publishedAt = parseNaverDate(dateStr);
+      const publishedAt = parseNaverDate(dateStr) || new Date().toISOString();
 
       items.push({
         id: hashId("nblog", link || title),
