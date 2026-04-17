@@ -44,6 +44,25 @@ export async function GET(request: Request) {
 
     logs.push(`총 ${dateKeys.length}개의 날짜 버킷 발견`);
 
+    const mode = searchParams.get("mode");
+    const targetDate = searchParams.get("date") || toKSTDate(new Date().toISOString());
+
+    if (mode === "deep-clean") {
+      logs.push(`[Deep Clean] ${targetDate} 데이터 완전 삭제 및 재수집 시작`);
+      await redis.del(`result-${targetDate}`);
+      await redis.del("latest-result");
+      
+      // 재수집 트리거 (서버 사이드에서 직접 호출)
+      const { runCollection } = await import("@/lib/collector");
+      const { saveCollectResult } = await import("@/lib/dataManager");
+      
+      const { result, trends, categoryNews } = await runCollection(targetDate);
+      await saveCollectResult(result, trends, categoryNews);
+      
+      logs.push(`${targetDate} 데이터 재수집 완료 (총 ${result.stats.total}건)`);
+      return NextResponse.json({ success: true, logs });
+    }
+
     // 2. 모든 데이터 로드 및 재분류
     for (const key of dateKeys) {
       const dateStr = key.replace("result-", "");
