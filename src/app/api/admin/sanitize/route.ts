@@ -109,6 +109,60 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, logs });
     }
 
+    if (mode === "bulk-heal") {
+      logs.push("=== 대규모 전역 클리닝(Bulk Heal) 시작 ===");
+      let deletedCount = 0;
+      for (const key of dateKeys) {
+        if (key === "latest-result" || !key.startsWith("result-")) continue;
+        const data = await redis.get<CollectResult>(key);
+        if (!data || !data.items) continue;
+
+        // 더 공격적인 삭제 로직: 수집일이 없거나, 발행일과 수집일이 너무 가까운 것들 모두 제거
+        const cleanedItems = data.items.filter(item => {
+          if (!item.collectedAt) return false; // 수집일 정보 없으면 과거 버그 데이터로 간주 삭제
+          const pub = new Date(item.publishedAt).getTime();
+          const coll = new Date(item.collectedAt).getTime();
+          return Math.abs(pub - coll) > 10000; // 10초 이내면 삭제
+        });
+
+        if (cleanedItems.length !== data.items.length) {
+          deletedCount += (data.items.length - cleanedItems.length);
+          const byGroup: Record<string, number> = {};
+          const bySource: Record<string, number> = {};
+          for (const item of cleanedItems) {
+            byGroup[item.groupId] = (byGroup[item.groupId] || 0) + 1;
+            bySource[item.source] = (bySource[item.source] || 0) + 1;
+          }
+          const updated = { ...data, items: cleanedItems, stats: { ...data.stats, total: cleanedItems.length, byGroup, bySource } };
+          await redis.set(key, JSON.stringify(updated));
+        }
+      }
+      logs.push(`총 ${deletedCount}개의 오염된 데이터를 삭제했습니다.`);
+      return NextResponse.json({ success: true, logs });
+    }
+
+    if (mode === "bulk-refill") {
+      const days = parseInt(searchParams.get("days") || "7");
+      logs.push(`=== ${days}일치 데이터 정밀 재수집(Bulk Refill) 시작 ===`);
+      
+      const { runCollection } = await import("@/lib/collector");
+      const { saveCollectResult } = await import("@/lib/dataManager");
+      
+      const today = new Date();
+      for (let i = 0; i < days; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateStr = toKSTDate(d.toISOString());
+        
+        logs.push(`${dateStr} 수집 중...`);
+        const { result, trends, categoryNews } = await runCollection(dateStr);
+        await saveCollectResult(result, trends, categoryNews);
+        logs.push(`${dateStr} 완료 (${result.stats.total}건)`);
+      }
+      
+      return NextResponse.json({ success: true, logs });
+    }
+
     // 2. 모든 데이터 로드 및 재분류
     for (const key of dateKeys) {
       const dateStr = key.replace("result-", "");

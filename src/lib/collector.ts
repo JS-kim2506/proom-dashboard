@@ -55,7 +55,7 @@ export async function runCollection(targetDate?: string): Promise<{ result: Coll
     fmKoreaResults,
   ] = await Promise.all([
     // Tier 1: Google News & YouTube
-    Promise.all(keywords.map(k => safeCollect(() => collectGoogleNews(k.keyword, k.groupId, k.memberName), `GNews(${k.keyword})`))),
+    Promise.all(keywords.map(k => safeCollect(() => collectGoogleNews(k.keyword, k.groupId, k.memberName, targetDate), `GNews(${k.keyword})`))),
     safeCollect(() => collectYouTube(), "YouTube"),
     safeCollect(() => collectTrendTopics(), "트렌드"),
     

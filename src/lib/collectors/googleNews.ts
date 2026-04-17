@@ -49,10 +49,21 @@ const parser = new Parser({
 export async function collectGoogleNews(
   keyword: string,
   groupId: string,
-  memberName?: string
+  memberName?: string,
+  targetDate?: string // 추가: 특정 보도일자 타겟팅
 ): Promise<CollectedItem[]> {
   const items: CollectedItem[] = [];
-  const encodedKeyword = encodeURIComponent(keyword);
+  
+  // 날짜 연산자 추가 (대상 날짜가 있으면 그 날짜 기사만 검색)
+  let query = keyword;
+  if (targetDate) {
+    const d = new Date(targetDate);
+    const prevDate = new Date(d.getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const nextDate = new Date(d.getTime() + 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    query += ` after:${prevDate} before:${nextDate}`;
+  }
+  
+  const encodedKeyword = encodeURIComponent(query);
   const url = `https://news.google.com/rss/search?q=${encodedKeyword}&hl=ko&gl=KR&ceid=KR:ko`;
 
   try {
