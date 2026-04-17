@@ -103,8 +103,9 @@ export async function collectNaverNews(
       if (!title || !isRelevantArticle(title, snippet, groupId, memberName)) return;
 
       const dateStr = $(el).find(".info_group .info").last().text().trim();
-      const parsedDate = targetDate ? new Date(targetDate).toISOString() : parseNaverDate(dateStr);
-      const publishedAt = parsedDate || new Date().toISOString();
+      const publishedAt = targetDate ? new Date(targetDate).toISOString() : parseNaverDate(dateStr);
+
+      if (!publishedAt) return; // 날짜 없으면 수집 안 함
 
       items.push({
         id: hashId("naver", link || title),
@@ -152,7 +153,8 @@ export async function collectNaverBlog(
 
       const dateStr = $(el).closest(".api_ani_send").find(".sub_time").text().trim() 
                       || $(el).parent().find(".sub_time").text().trim();
-      const publishedAt = parseNaverDate(dateStr) || new Date().toISOString();
+      const publishedAt = parseNaverDate(dateStr);
+      if (!publishedAt) return; // 날짜 없으면 수집 안 함
 
       items.push({
         id: hashId("nblog", link || title),

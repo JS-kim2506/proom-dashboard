@@ -39,6 +39,12 @@ export async function collectFmKorea(
       const snippet = $(el).find("dd").text().trim();
 
       if (title && title.includes(keyword)) {
+        // 에펨코리아 검색결과에서 날짜를 파싱하지 못하면 수집하지 않음 (똑바로)
+        const dateEl = $(el).find(".regdate").text().trim(); 
+        const publishedAt = dateEl ? new Date(dateEl).toISOString() : null;
+        
+        if (!publishedAt) return;
+
         items.push({
           id: hashId("fm", link),
           title,
@@ -49,7 +55,7 @@ export async function collectFmKorea(
           groupId,
           memberName,
           keyword,
-          publishedAt: new Date().toISOString(),
+          publishedAt,
           collectedAt: new Date().toISOString(),
           alertLevel: detectAlertLevel(title + " " + snippet),
           snippet: snippet.slice(0, 200),

@@ -163,6 +163,41 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, logs });
     }
 
+    if (mode === "nuclear-reset") {
+      logs.push("=== 전역 데이터 완전 초기화 및 재구축(Nuclear Reset) 시작 ===");
+      
+      const today = new Date();
+      const deletePromises = [];
+      for (let i = 0; i < 30; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateStr = toKSTDate(d.toISOString());
+        deletePromises.push(redis.del(`result-${dateStr}`));
+      }
+      deletePromises.push(redis.del("latest-result"));
+      deletePromises.push(redis.del("daily-stats"));
+      await Promise.all(deletePromises);
+      
+      logs.push("최근 30일치 데이터를 모두 삭제했습니다. 이제 깨끗한 데이터로 다시 채웁니다...");
+      
+      const days = parseInt(searchParams.get("days") || "30");
+      const { runCollection } = await import("@/lib/collector");
+      const { saveCollectResult } = await import("@/lib/dataManager");
+      
+      for (let i = 0; i < days; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateStr = toKSTDate(d.toISOString());
+        
+        logs.push(`${dateStr} 수집 중...`);
+        const { result, trends, categoryNews } = await runCollection(dateStr);
+        await saveCollectResult(result, trends, categoryNews);
+      }
+      
+      logs.push("전체 복구가 완료되었습니다!");
+      return NextResponse.json({ success: true, logs });
+    }
+
     // 2. 모든 데이터 로드 및 재분류
     for (const key of dateKeys) {
       const dateStr = key.replace("result-", "");
