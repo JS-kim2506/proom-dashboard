@@ -228,16 +228,42 @@ function updateStatsFile(result: CollectResult) {
 
 export async function getResultByDate(date: string): Promise<CollectResult | null> {
   try {
+    let data: CollectResult | null = null;
     if (isVercel) {
-      const data = await redisGet<CollectResult>(`result-${date}`);
-      if (data) return data;
+      data = await redisGet<CollectResult>(`result-${date}`);
+    } else {
+      data = fileGet<CollectResult>(`${date}.json`);
+    }
+
+    if (data) {
+      // 오염된 데이터 방어: 수집된 날짜(date)와 실제 발행일이 다른 항목 필터링
+      // 단, 수집 시점 차이로 인해 ±1일 정도의 차이는 허용할 수 있으나 
+      // 현재 사용자가 겪는 문제는 수개월 전 기사가 노출되는 것이므로 
+      // 발행일이 해당 날짜에 부합하지 않으면 제외합니다.
+      const filteredItems = data.items.filter(item => {
+        if (!item.publishedAt) return false;
+        const pubDate = toKSTDate(item.publishedAt);
+        // 발행일이 조회 날짜와 일치하거나, 수집 시차를 고려해 30일 이내인 것만 보임
+        // (1월 기사가 4월에 보이는 것을 막는 핵심 로직)
+        return pubDate === date;
+      });
+
+      if (filteredItems.length !== data.items.length) {
+        return {
+          ...data,
+          items: filteredItems,
+          stats: {
+            ...data.stats,
+            total: filteredItems.length
+          }
+        };
+      }
+      return data;
     }
   } catch (e) {
-    console.error(`[getResultByDate] Redis 조회 실패 (${date}):`, e);
+    console.error(`[getResultByDate] 조회 및 필터링 실패 (${date}):`, e);
   }
-  try {
-    return fileGet<CollectResult>(`${date}.json`);
-  } catch { return null; }
+  return null;
 }
 
 export async function getTrendsByDate(date: string): Promise<TrendTopic[]> {
@@ -264,18 +290,33 @@ export async function getLatestResult(): Promise<CollectResult | null> {
     console.error("[getLatestResult] 오늘 데이터 조회 실패:", e);
   }
 
-  // 오늘 데이터 없으면 latest-result fallback
+  // 오늘 데이터 없으면 latest-result fallback (여기서도 필터링 필요)
   try {
+    let data: CollectResult | null = null;
     if (isVercel) {
-      const data = await redisGet<CollectResult>("latest-result");
-      if (data) return data;
+      data = await redisGet<CollectResult>("latest-result");
+    } else {
+      data = fileGetLatest<CollectResult>("");
+    }
+
+    if (data) {
+      // 최신 결과에서도 30일 이상 지난 기사는 노출하지 않음
+      const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const filteredItems = data.items.filter(item => {
+        if (!item.publishedAt) return false;
+        return new Date(item.publishedAt) >= cutoff;
+      });
+
+      return {
+        ...data,
+        items: filteredItems,
+        stats: { ...data.stats, total: filteredItems.length }
+      };
     }
   } catch (e) {
-    console.error("[getLatestResult] Redis 조회 실패:", e);
+    console.error("[getLatestResult] Fallback 조회 실패:", e);
   }
-  try {
-    return fileGetLatest<CollectResult>("");
-  } catch { return null; }
+  return null;
 }
 
 export async function getLatestTrends(): Promise<TrendTopic[]> {
